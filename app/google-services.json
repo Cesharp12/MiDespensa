@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "136934795802",
+    "project_id": "midespensa-6a6bb",
+    "storage_bucket": "midespensa-6a6bb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:136934795802:android:8692a5c458b029a697bfa3",
+        "android_client_info": {
+          "package_name": "com.example.midespensa"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "136934795802-u52274gofiusik96kgve7utoi3q9g2s4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDAGjUlOXUnx7dWhZTq6HXNC7bDIVWycu8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "136934795802-u52274gofiusik96kgve7utoi3q9g2s4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
