@@ -143,7 +143,7 @@ fun CompraScreen(
 
                     AnimatedVisibility(visible = isExpanded) {
                         Column(modifier = Modifier.fillMaxWidth().padding(start = 32.dp, end = 32.dp, top = 8.dp)) {
-                            // Menú superior
+                            // Menú buttons y titulo
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
