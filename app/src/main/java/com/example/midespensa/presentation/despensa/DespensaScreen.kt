@@ -55,6 +55,14 @@ import java.util.Locale
 import androidx.compose.ui.unit.IntOffset
 import kotlin.math.roundToInt
 
+import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Info
+import com.example.midespensa.ui.theme.GreenConfirm
+import kotlinx.coroutines.delay
+
 
 @Composable
 fun DespensaHeader(
@@ -71,12 +79,28 @@ fun DespensaHeader(
     val backgroundColor = Color(android.graphics.Color.parseColor(colorHex.ifBlank { "#FFCC00" })) // por defecto amarillo
     val chevronIcon = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown
 
+    // Gestor para copiar al portapapeles
+    val clipboardManager: ClipboardManager = LocalClipboardManager.current
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(backgroundColor)
             .padding(12.dp)
     ) {
+//        Row(
+//            verticalAlignment = Alignment.CenterVertically,
+//            modifier = Modifier.fillMaxWidth()
+//        ) {
+//            Text(
+//                text = "Código de despensa: $codigo",
+//                style = MaterialTheme.typography.titleMedium,
+//                modifier = Modifier.weight(1f)
+//            )
+//            IconButton(onClick = onToggleExpand) {
+//                Icon(imageVector = chevronIcon, contentDescription = "Expandir")
+//            }
+//        }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -86,6 +110,14 @@ fun DespensaHeader(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f)
             )
+
+            IconButton(onClick = {
+                clipboardManager.setText(AnnotatedString(codigo))
+                Toast.makeText(context, "Código copiado", Toast.LENGTH_SHORT).show()
+            }) {
+                Icon(imageVector = Icons.Default.ContentCopy, contentDescription = "Copiar código")
+            }
+
             IconButton(onClick = onToggleExpand) {
                 Icon(imageVector = chevronIcon, contentDescription = "Expandir")
             }
@@ -99,12 +131,12 @@ fun DespensaHeader(
                 if (editando) {
                     OutlinedTextField(
                         value = nuevaDescripcion,
-                        onValueChange = { nuevaDescripcion = it },
+                        onValueChange = { if (it.length <= 40) nuevaDescripcion = it },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        label = { Text("Editar descripción") },
-
+                        label = { Text("Editar descripción") }
                     )
+
                     Spacer(Modifier.height(8.dp))
                     Row {
                         Button(
@@ -181,7 +213,7 @@ fun ColorPickerSection(
         "#90CAF9", // Azul clarito
         "#CE93D8", // Lila clarito
         "#EF9A9A", // Rojo clarito
-        "#80DEEA"  // Nuevo: Celeste clarito
+        "#80DEEA"  // Celeste clarito
     )
 
     Row(
@@ -226,11 +258,74 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
 
     var selectedProducto by remember { mutableStateOf<Producto?>(null) }
 
+    // SnackBar tip eliminar
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var progress by remember { mutableStateOf(0f) }
+
+    LaunchedEffect(Unit) {
+        scope.launch {
+            snackbarHostState.showSnackbar(
+                message = "Desliza un producto para eliminarlo",
+                withDismissAction = false,
+                duration = SnackbarDuration.Indefinite
+            )
+        }
+
+        progress = 0f
+        while (progress < 1f) {
+            progress += 0.005f
+            delay(17)
+        }
+
+        // Ahora que la barra terminó, descartamos el snackbar
+        snackbarHostState.currentSnackbarData?.dismiss()
+    }
+
+    // Evento para cargar los productos al entrar a la página
     LaunchedEffect(key1 = codigoDespensa) {
         viewModel.cargarDespensa(codigoDespensa)
     }
 
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data ->
+                Snackbar(
+                    modifier = Modifier
+                        .padding(15.dp)
+                        .background(Color(0xFFEDF2FB), RoundedCornerShape(12.dp)),
+                    containerColor = Color(0xFFBBDEFB),
+                    contentColor = Color(0xFF0D47A1)
+                ) {
+                    Column(
+                        modifier = Modifier
+                        .padding(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Info",
+                                tint = Color(0xFF0D47A1),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Desliza un producto para eliminarlo")
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(50)),
+                            color = Color(0xFF0D47A1),
+                        )
+                    }
+                }
+            }
+        },
         topBar = {
             Column {
                 HeaderSection(title = nombreDespensa)
@@ -490,25 +585,25 @@ fun ProductoItemSwipeable(
     val swipeThresholdPx = with(density) { 100.dp.toPx() }
 
     val offsetX = remember { Animatable(0f) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-
-    // Diálogo de confirmación
-    if (showDeleteDialog) {
-        DeleteProductoDialog(
-            producto = producto,
-            onConfirmDelete = {
-                onDelete(producto)
-                coroutineScope.launch { offsetX.snapTo(0f) }
-                showDeleteDialog = false
-            },
-            onDismiss = {
-                coroutineScope.launch {
-                    offsetX.animateTo(0f)
-                }
-                showDeleteDialog = false
-            }
-        )
-    }
+//    var showDeleteDialog by remember { mutableStateOf(false) }
+//
+//    // Diálogo de confirmación
+//    if (showDeleteDialog) {
+//        DeleteProductoDialog(
+//            producto = producto,
+//            onConfirmDelete = {
+//                onDelete(producto)
+//                coroutineScope.launch { offsetX.snapTo(0f) }
+//                showDeleteDialog = false
+//            },
+//            onDismiss = {
+//                coroutineScope.launch {
+//                    offsetX.animateTo(0f)
+//                }
+//                showDeleteDialog = false
+//            }
+//        )
+//    }
 
     Box(
         modifier = Modifier
@@ -519,7 +614,8 @@ fun ProductoItemSwipeable(
                     onDragEnd = {
                         coroutineScope.launch {
                             if (offsetX.value > swipeThresholdPx) {
-                                showDeleteDialog = true
+                                onDelete(producto) // Llama al padre, no abras diálogo aquí
+                                offsetX.snapTo(0f) // Resetea swipe
                             } else {
                                 offsetX.animateTo(0f)
                             }
@@ -569,105 +665,6 @@ fun ProductoItemSwipeable(
         }
     }
 }
-
-
-//@Composable
-//fun ProductoItemSwipeable(
-//    producto: Producto,
-//    onDelete: (Producto) -> Unit,
-//    onConsumirUnidad: (Producto) -> Unit,
-//    onReponerUnidad: (Producto) -> Unit,
-//    onEditClick: (Producto) -> Unit,
-//    onAgregarListaCompra: (Producto) -> Unit
-//) {
-//    val coroutineScope = rememberCoroutineScope()
-//    val swipeState = rememberSwipeToDismissBoxState(
-//        confirmValueChange = { value ->
-//            value != SwipeToDismissBoxValue.StartToEnd // nunca se confirma (previene borrado)
-//        }
-//    )
-//
-//
-//    var showDeleteDialog by remember { mutableStateOf(false) }
-//    var swipeHandled by remember { mutableStateOf(false) }
-//    var hasRenderedOnce by remember { mutableStateOf(false) }
-//
-//    // Esperamos al primer render para evitar alerta al iniciar
-//    LaunchedEffect(Unit) {
-//        withFrameNanos {
-//            hasRenderedOnce = true
-//        }
-//    }
-//
-//    LaunchedEffect(swipeState.dismissDirection, swipeState.targetValue) {
-//        if (
-//            hasRenderedOnce &&
-//            swipeState.dismissDirection == SwipeToDismissBoxValue.StartToEnd &&
-//            swipeState.targetValue == SwipeToDismissBoxValue.StartToEnd &&
-//            !swipeHandled
-//        ) {
-//            swipeHandled = true
-//            showDeleteDialog = true
-//        }
-//    }
-//
-//
-//    if (showDeleteDialog) {
-//        DeleteProductoDialog(
-//            producto = producto,
-//            onConfirmDelete = {
-//                onDelete(producto)
-//                coroutineScope.launch { swipeState.reset() }
-//                showDeleteDialog = false
-//                swipeHandled = false
-//            },
-//            onDismiss = {
-//                coroutineScope.launch { swipeState.reset() }
-//                showDeleteDialog = false
-//                swipeHandled = false
-//            }
-//        )
-//    }
-//
-//    SwipeToDismissBox(
-//        state = swipeState,
-//        enableDismissFromStartToEnd = true,
-//        enableDismissFromEndToStart = false,
-//        modifier = Modifier.fillMaxWidth(),
-//        backgroundContent = {
-//            val backgroundColor by animateColorAsState(
-//                targetValue = if (swipeState.targetValue == SwipeToDismissBoxValue.StartToEnd)
-//                    RedCancel else Color.White,
-//                label = "swipe-color"
-//            )
-//
-//            Box(
-//                modifier = Modifier
-//                    .fillMaxSize()
-//                    .clip(RoundedCornerShape(12.dp))
-//                    .background(backgroundColor)
-//                    .padding(start = 20.dp),
-//                contentAlignment = Alignment.CenterStart
-//            ) {
-//                Icon(
-//                    imageVector = Icons.Default.Delete,
-//                    contentDescription = "Eliminar producto",
-//                    tint = Color.White
-//                )
-//            }
-//        },
-//        content = {
-//            ProductoItem(
-//                producto = producto,
-//                onConsumirUnidad = onConsumirUnidad,
-//                onReponerUnidad = onReponerUnidad,
-//                onEditClick = onEditClick,
-//                onDeleteProducto = {},
-//                onAgregarListaCompra = {}
-//            )
-//        }
-//    )
-//}
 
 @Composable
 fun EditarProductoDialog(
@@ -792,7 +789,7 @@ fun CrearProductoDialog(
                 OutlinedTextField(
                     value = cantidadInput,
                     onValueChange = { input ->
-                        if (input.length <= maxCantidadDigits && input.matches(Regex("^\\d*\\.?\\d*\$"))) {
+                        if (input.length <= 7 && input.matches(Regex("^\\d*(\\.\\d{0,2})?$"))) {
                             cantidadInput = input
                         }
                     },
@@ -808,8 +805,7 @@ fun CrearProductoDialog(
                     value = unidad,
                     onValueChange = {
                         unidad = it
-                        errorMensajeUnidad = if (!it.matches(Regex("^[\\p{L}]{0,$maxUnidad}$"))
-                            ) {
+                        errorMensajeUnidad = if (!it.matches(Regex("^[\\p{L}]{0,$maxUnidad}$"))) {
                             "Solo se permiten letras (máx. $maxUnidad)"
                         } else ""
                     },
@@ -844,16 +840,16 @@ fun CrearProductoDialog(
             TextButton(onClick = {
                 val cantidadNum = cantidadInput.toDoubleOrNull() ?: -1.0
 
-                if (nombre.isBlank() || unidad.isBlank() || cantidadNum <= 0) {
+                if (nombre.isBlank() || unidad.isBlank() || cantidadInput.isBlank() || fechaCaducidad.isBlank()) {
                     errorMensajeBottom = "Completa todos los campos correctamente."
                     return@TextButton
                 }
-                if (nombre.length > maxNombre) {
-                    errorMensajeNombre = "El nombre es demasiado largo (máx. $maxNombre caracteres)."
+                if (nombre.length > 30) {
+                    errorMensajeNombre = "El nombre es demasiado largo (máx. ${30} caracteres)."
                     return@TextButton
                 }
-                if (!unidad.matches(Regex("^[a-zA-Z]{1,$maxUnidad}\$"))) {
-                    errorMensajeUnidad = "Unidad inválida. Solo letras (máx. $maxUnidad)."
+                if (!unidad.matches(Regex("^[a-zA-Z]{1,15}\$"))) {
+                    errorMensajeUnidad = "Unidad inválida. Solo letras (máx. ${15})."
                     return@TextButton
                 }
                 if (!esFechaValida(fechaCaducidad)) {
