@@ -93,7 +93,7 @@ class DespensaViewModel : ViewModel() {
             }
     }
 
-    fun cargarProductos() {
+    private fun cargarProductos() {
         val despensa = despensaId ?: return
         db.collection("despensas").document(despensa).collection("productos")
             .get()

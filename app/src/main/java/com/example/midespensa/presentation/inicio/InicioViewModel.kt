@@ -1,12 +1,7 @@
 package com.example.midespensa.presentation.inicio
 
 import android.util.Log
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.ime
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.example.midespensa.data.model.Despensa
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser

@@ -59,8 +59,9 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
     // GESTIÓN DE LA ACCIÓN DE VOLVER A ATRÁS
     var mostrarDialogoSalir by remember { mutableStateOf(false) }
 
-    // Scroll LazyColumn
-    val listState = rememberLazyListState()
+    // Limitar a 8 la cantidad de despensas
+    var showLimitDialog by remember { mutableStateOf(false) }
+    var limitDialogMessage by remember { mutableStateOf("") }
 
     // Interceptar botón "atrás" del sistema
     BackHandler {
@@ -147,13 +148,38 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(Modifier.height(8.dp))
+
                     Button(
                         onClick = {
                             focusManager.clearFocus()
-                            viewModel.joinDespensa(joinCode,
-                                onSuccess = { newName = ""; joinCode = ""; Toast.makeText(context, "¡Nueva despensa añadida!", Toast.LENGTH_SHORT).show() },
-                                onFailure = { msg ->Toast.makeText(context, "Error al unirse", Toast.LENGTH_SHORT).show() }
-                            )
+
+                            val code = joinCode.trim().uppercase()
+                            val despensaByCodigo = despensas.firstOrNull { it.codigo == code }
+
+                            when {
+                                despensas.size >= 8 -> {
+                                    limitDialogMessage = "No puedes unirte a más de 8 despensas"
+                                    showLimitDialog = true
+                                }
+                                despensas.any { it.codigo == code } -> {
+                                    if (despensaByCodigo != null) {
+                                        limitDialogMessage = "Ya perteneces a la despensa '${despensaByCodigo.nombre}'"
+                                    }
+                                    showLimitDialog = true
+                                }
+                                else -> {
+                                    viewModel.joinDespensa(
+                                        code,
+                                        onSuccess = {
+                                            joinCode = ""
+                                            Toast.makeText(context, "¡Nueva despensa añadida!", Toast.LENGTH_SHORT).show()
+                                        },
+                                        onFailure = { msg ->
+                                            Toast.makeText(context, "Error al unirse: $msg", Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                                }
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = GreenConfirm),
                         modifier = Modifier.fillMaxWidth(),
@@ -187,7 +213,14 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                         )
 
                         Button(
-                            onClick = { showCreateDialog = true },
+                            onClick = {
+                                if (despensas.size >= 8) {
+                                    limitDialogMessage = "No puedes crear más de 8 despensas"
+                                    showLimitDialog = true
+                                } else {
+                                    showCreateDialog = true
+                                }
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = DarkGray),
                             shape = MaterialTheme.shapes.small,
                             modifier = Modifier.align(Alignment.CenterEnd),
@@ -259,6 +292,20 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
             }
         )
     }
+    // Avisar de que se ha llegado al maximo permitido de despensas
+    if (showLimitDialog) {
+        AlertDialog(
+            onDismissRequest = { showLimitDialog = false },
+            title = { Text("Error al unirse") },
+            text = { Text(limitDialogMessage) },
+            confirmButton = {
+                TextButton(onClick = { showLimitDialog = false }) {
+                    Text("Entendido")
+                }
+            }
+        )
+    }
+
 }
 
 @Composable

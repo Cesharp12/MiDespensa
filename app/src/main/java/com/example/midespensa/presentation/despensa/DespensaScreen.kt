@@ -525,11 +525,15 @@ fun ProductoItem(
                     color = Color.DarkGray
                 )
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Caduca: ${producto.caducidad}",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
+
+                if(producto.caducidad.isNotBlank()){
+                    Text(
+                        text = "Caduca: ${producto.caducidad}",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
+
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -750,6 +754,7 @@ fun CrearProductoDialog(
 
     fun esFechaValida(fecha: String): Boolean {
         return try {
+            if (fecha.isBlank()) return true
             val formato = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
             formato.isLenient = false
             formato.parse(fecha) != null // Si no lanza excepción, es válida
@@ -840,7 +845,7 @@ fun CrearProductoDialog(
             TextButton(onClick = {
                 val cantidadNum = cantidadInput.toDoubleOrNull() ?: -1.0
 
-                if (nombre.isBlank() || unidad.isBlank() || cantidadInput.isBlank() || fechaCaducidad.isBlank()) {
+                if (nombre.isBlank() || unidad.isBlank() || cantidadInput.isBlank()) {
                     errorMensajeBottom = "Completa todos los campos correctamente."
                     return@TextButton
                 }

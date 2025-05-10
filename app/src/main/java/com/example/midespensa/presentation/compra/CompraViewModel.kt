@@ -96,6 +96,27 @@ class CompraViewModel : ViewModel() {
             }
     }
 
+    fun editarProducto(despensaCodigo: String, productoId: String, nuevaCantidad: Int, nuevosDetalles: String) {
+        db.collection("despensas")
+            .whereEqualTo("codigo", despensaCodigo)
+            .get()
+            .addOnSuccessListener { snap ->
+                val despensaId = snap.documents.firstOrNull()?.id ?: return@addOnSuccessListener
+
+                db.collection("despensas")
+                    .document(despensaId)
+                    .collection("productosCompra")
+                    .document(productoId)
+                    .update(
+                        mapOf(
+                            "cantidad" to nuevaCantidad,
+                            "detalles" to nuevosDetalles
+                        )
+                    )
+            }
+    }
+
+
     fun eliminarProducto(codigoDespensa: String, productoId: String) {
         db.collection("despensas")
             .whereEqualTo("codigo", codigoDespensa)
