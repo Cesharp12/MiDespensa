@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import com.example.midespensa.data.model.Producto
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,21 +19,13 @@ import java.util.Locale
 class DespensaViewModel : ViewModel() {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
 
     val user: FirebaseUser? = auth.currentUser
 
     private val _nombre = MutableStateFlow("")
     val nombre: StateFlow<String> = _nombre.asStateFlow()
 
-    private val _apellidos = MutableStateFlow("")
-    val apellidos: StateFlow<String> = _apellidos.asStateFlow()
-
-    private val _profileImageUrl = MutableStateFlow(user?.photoUrl?.toString())
-    val profileImageUrl: StateFlow<String?> = _profileImageUrl.asStateFlow()
-
     private val _codigoDespensa = MutableStateFlow("")
-    val codigoDespensa: StateFlow<String> = _codigoDespensa.asStateFlow()
 
     private val _nombreDespensa = MutableStateFlow("")
     val nombreDespensa: StateFlow<String> = _nombreDespensa.asStateFlow()
@@ -49,17 +42,7 @@ class DespensaViewModel : ViewModel() {
     private val _productos = MutableStateFlow<List<Producto>>(emptyList())
     val productos: StateFlow<List<Producto>> = _productos.asStateFlow()
 
-    private val _nombreProducto = MutableStateFlow("")
-    val nombreProducto: StateFlow<String> = _nombreProducto.asStateFlow()
-
-    private val _estadoProducto = MutableStateFlow("")
-    val estadoProducto: StateFlow<String> = _estadoProducto.asStateFlow()
-
-    private val _caducidadProducto = MutableStateFlow("")
-    val caducidadProducto: StateFlow<String> = _caducidadProducto.asStateFlow()
-
     private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
 
     private var despensaId: String? = null
 
@@ -197,13 +180,32 @@ class DespensaViewModel : ViewModel() {
             .addOnFailureListener { _error.value = "Error al eliminar producto" }
     }
 
-    fun agregarProductoListaCompra(producto: Producto, cantidadAReponer: Int) {
-        // ESTO LO HAREMOS MAS ADELANTE
-        // Aquí harías la lógica para añadir el producto a la lista de compra (otra colección en Firestore probablemente)
-        Log.d(
-            "DespensaViewModel",
-            "Añadiendo ${producto.nombre} x$cantidadAReponer a la lista de compra"
+    fun agregarProductoListaCompra(producto: Producto, cantidadAReponer: Int?, unidades: String, detalles: String) {
+        val despensaId = despensaId ?: return
+        val nuevo = hashMapOf(
+            "nombre" to producto.nombre,
+            "cantidad" to cantidadAReponer,
+            "unidades" to unidades,
+            "detalles" to detalles
         )
+        db.collection("despensas")
+            .document(despensaId)
+            .collection("productosCompra")
+            .add(nuevo)
+    }
+
+
+    fun abandonarDespensa(codigo: String) {
+        val uid = auth.currentUser?.uid ?: return
+        db.collection("despensas")
+            .whereEqualTo("codigo", codigo)
+            .get()
+            .addOnSuccessListener { snap ->
+                val doc = snap.documents.firstOrNull() ?: return@addOnSuccessListener
+                db.collection("despensas")
+                    .document(doc.id)
+                    .update("miembros", FieldValue.arrayRemove(uid))
+            }
     }
 
     private fun calcularEstadoDesdeFecha(fechaCaducidad: String): String {

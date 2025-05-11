@@ -267,7 +267,7 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                     onValueChange = {
                         if (it.length <= 22) newName = it
                     },
-                    placeholder = { Text("Nombre de la despensa") },
+                    placeholder = { Text("Nombre de la despensa", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

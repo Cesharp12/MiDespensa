@@ -73,12 +73,12 @@ fun DespensaHeader(
     colorHex: String,
     miembros: List<String>,
     isExpanded: Boolean,
-    onToggleExpand: () -> Unit
+    onToggleExpand: () -> Unit,
+    onLeave: () -> Unit
 ) {
     val context = LocalContext.current
     val backgroundColor = Color(android.graphics.Color.parseColor(colorHex.ifBlank { "#FFCC00" })) // por defecto amarillo
     val chevronIcon = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown
-
     // Gestor para copiar al portapapeles
     val clipboardManager: ClipboardManager = LocalClipboardManager.current
 
@@ -88,19 +88,7 @@ fun DespensaHeader(
             .background(backgroundColor)
             .padding(12.dp)
     ) {
-//        Row(
-//            verticalAlignment = Alignment.CenterVertically,
-//            modifier = Modifier.fillMaxWidth()
-//        ) {
-//            Text(
-//                text = "Código de despensa: $codigo",
-//                style = MaterialTheme.typography.titleMedium,
-//                modifier = Modifier.weight(1f)
-//            )
-//            IconButton(onClick = onToggleExpand) {
-//                Icon(imageVector = chevronIcon, contentDescription = "Expandir")
-//            }
-//        }
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -194,7 +182,19 @@ fun DespensaHeader(
                 miembros.forEach {
                     Text("• $it")
                 }
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(12.dp))
+
+                Button(
+                    onClick = onLeave,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = RedCancel,
+                        contentColor = Color.White
+                    ),
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Abandonar despensa")
+                }
             }
         }
 
@@ -248,11 +248,15 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
     val productos by viewModel.productos.collectAsState()
 
     var isExpanded by remember { mutableStateOf(false) }
+
     var showCreateDialog by remember { mutableStateOf(false) }
     var showEditarDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showLeaveDialog by remember { mutableStateOf(false) }
+    var showAddToCompraDialog by remember { mutableStateOf(false) }
+
     var productoAEliminar by remember { mutableStateOf<Producto?>(null) }
-    var productoAAgregar by remember { mutableStateOf<Producto?>(null) }
+    var productoAComprar by remember { mutableStateOf<Producto?>(null) }
 
     var searchQuery by remember { mutableStateOf("") }
 
@@ -355,7 +359,8 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
                 colorHex = colorDespensa,
                 miembros = miembros,
                 isExpanded = isExpanded,
-                onToggleExpand = { isExpanded = !isExpanded }
+                onToggleExpand = { isExpanded = !isExpanded },
+                onLeave = { showLeaveDialog = true }
             )
 
             LazyColumn(
@@ -431,9 +436,9 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
                             selectedProducto = prod
                             showEditarDialog = true
                         },
-                        onAgregarListaCompra = {
-                            productoAAgregar = it
-                            showDeleteDialog = true
+                        onAgregarListaCompra = { prod ->
+                            productoAComprar = prod
+                            showAddToCompraDialog = true
                         }
                     )
                 }
@@ -443,6 +448,7 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
         }
     }
 
+    // EDITAR PRODUCTO
     if (showEditarDialog && selectedProducto != null) {
         EditarProductoDialog(
             producto = selectedProducto!!,
@@ -454,6 +460,7 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
         )
     }
 
+    // CREAR PRODUCTO
     if (showCreateDialog) {
         CrearProductoDialog(
             onDismiss = { showCreateDialog = false },
@@ -464,6 +471,7 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
         )
     }
 
+    // ELIMINAR PRODUCTO
     if (showDeleteDialog && productoAEliminar != null) {
         DeleteProductoDialog(
             producto = productoAEliminar!!,
@@ -474,7 +482,72 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
             onDismiss = { showDeleteDialog = false }
         )
     }
+    // ABANDONAR DESPENSA
+    if (showLeaveDialog) {
+        AbandonarDespensaDialog(
+            despensaNombre = nombreDespensa,
+            onConfirm = {
+                showLeaveDialog = false
+                viewModel.abandonarDespensa(codigoDespensa)
+                navController.popBackStack()
+            },
+            onDismiss = {
+                showLeaveDialog = false
+            }
+        )
+    }
 
+    //AGREGAR PRODUCTO A LISTA
+    if (showAddToCompraDialog && productoAComprar != null) {
+        var cantidad by remember { mutableStateOf("1") }
+        var unidades by remember { mutableStateOf("") }
+        var detalles by remember { mutableStateOf("") }
+        var errorCantidad by remember { mutableStateOf("") }
+        var errorUnidades by remember { mutableStateOf("") }
+
+        AgregarAListaCompraDialog(
+            producto = productoAComprar!!,
+            cantidad = cantidad,
+            unidades = unidades,
+            detalles = detalles,
+            onCantidadChange = { cantidad = it },
+            onUnidadesChange = { unidades = it },
+            onDetallesChange = { detalles = it },
+            errorCantidad = errorCantidad,
+            errorUnidades = errorUnidades,
+            onConfirm = {
+                val cantidadFinal = cantidad.toIntOrNull()
+                var valid = true
+
+                if (cantidadFinal == null || cantidadFinal <= 0) {
+                    errorCantidad = "Introduce una cantidad válida."
+                    valid = false
+                }
+
+                if (unidades.isNotBlank() && !unidades.matches(Regex("^[\\p{L}]{1,15}$"))) {
+                    errorUnidades = "Solo letras (máx. 15)."
+                    valid = false
+                } else {
+                    errorUnidades = ""
+                }
+
+                if (!valid) return@AgregarAListaCompraDialog
+
+                val unidadesFinal = if (unidades.isBlank()) "unidades" else unidades.trim()
+
+                viewModel.agregarProductoListaCompra(
+                    producto = productoAComprar!!,
+                    cantidadAReponer = cantidadFinal,
+                    unidades = unidadesFinal,
+                    detalles = detalles.trim()
+                )
+
+                showAddToCompraDialog = false
+            },
+            onDismiss = { showAddToCompraDialog = false }
+        )
+
+    }
 }
 
 @Composable
@@ -561,7 +634,7 @@ fun ProductoItem(
                     )
                 }
 
-                IconButton(onClick = { /* TODO: acción lista de compra */ }) {
+                IconButton(onClick = { onAgregarListaCompra(producto) }) {
                     Image(
                         painter = painterResource(id = R.drawable.compra_black),
                         contentDescription = "Añadir a la lista de compra",
@@ -589,25 +662,6 @@ fun ProductoItemSwipeable(
     val swipeThresholdPx = with(density) { 100.dp.toPx() }
 
     val offsetX = remember { Animatable(0f) }
-//    var showDeleteDialog by remember { mutableStateOf(false) }
-//
-//    // Diálogo de confirmación
-//    if (showDeleteDialog) {
-//        DeleteProductoDialog(
-//            producto = producto,
-//            onConfirmDelete = {
-//                onDelete(producto)
-//                coroutineScope.launch { offsetX.snapTo(0f) }
-//                showDeleteDialog = false
-//            },
-//            onDismiss = {
-//                coroutineScope.launch {
-//                    offsetX.animateTo(0f)
-//                }
-//                showDeleteDialog = false
-//            }
-//        )
-//    }
 
     Box(
         modifier = Modifier
@@ -664,7 +718,7 @@ fun ProductoItemSwipeable(
                 onReponerUnidad = onReponerUnidad,
                 onEditClick = onEditClick,
                 onDeleteProducto = {}, // El swipe se encarga
-                onAgregarListaCompra = {}
+                onAgregarListaCompra = onAgregarListaCompra
             )
         }
     }
@@ -677,51 +731,98 @@ fun EditarProductoDialog(
     onDismiss: () -> Unit
 ) {
     var nombre by remember { mutableStateOf(producto.nombre) }
-    var cantidad by remember { mutableStateOf(producto.cantidad) }
+    var cantidadInput by remember { mutableStateOf(producto.cantidad.toString()) }
     var unidad by remember { mutableStateOf(producto.unidad) }
     var fechaCaducidad by remember { mutableStateOf(producto.caducidad) }
+
+    var errorMensaje by remember { mutableStateOf("") }
+
+    fun esFechaValida(fecha: String): Boolean {
+        return try {
+            if (fecha.isBlank()) return true
+            val formato = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+            formato.isLenient = false
+            formato.parse(fecha) != null
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Editar producto") },
         text = {
             Column {
+                // NOMBRE
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
-                    label = { Text("Nombre") },
+                    label = { Text("Nombre", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
                 Spacer(Modifier.height(8.dp))
+
+                // CANTIDAD
                 OutlinedTextField(
-                    value = cantidad.toString(),
-                    onValueChange = { cantidad = it.toIntOrNull() ?: 1 },
-                    label = { Text("Cantidad") },
+                    value = cantidadInput,
+                    onValueChange = {
+                        if (it.length <= 7 && it.matches(Regex("^\\d*(\\.\\d{0,2})?$"))) {
+                            cantidadInput = it
+                        }
+                    },
+                    label = { Text("Cantidad", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
                 Spacer(Modifier.height(8.dp))
+
+                // UNIDAD (opcional)
                 OutlinedTextField(
                     value = unidad,
                     onValueChange = { unidad = it },
-                    label = { Text("Unidad") },
+                    label = { Text("Unidad (ej: kg)", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
                 Spacer(Modifier.height(8.dp))
+
+                // FECHA (opcional)
                 OutlinedTextField(
                     value = fechaCaducidad,
                     onValueChange = { fechaCaducidad = it },
-                    label = { Text("Fecha caducidad (dd/MM/yy)") },
+                    label = { Text("Fecha caducidad (dd/MM/yyyy)", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                if (errorMensaje.isNotBlank()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(errorMensaje, color = Color.Red, fontSize = 12.sp)
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                onConfirmEdit(nombre.trim(), cantidad, unidad.trim(), fechaCaducidad.trim())
+                val cantidad = cantidadInput.toIntOrNull()
+                if (nombre.isBlank() || cantidad == null || cantidad <= 0) {
+                    errorMensaje = "El nombre y la cantidad son obligatorios y válidos."
+                    return@TextButton
+                }
+
+                if (!esFechaValida(fechaCaducidad)) {
+                    errorMensaje = "La fecha debe tener un formato válido (dd/MM/yyyy)."
+                    return@TextButton
+                }
+
+                val unidadFinal = if (unidad.isBlank()) "unidades" else unidad.trim()
+                val fechaFinal = fechaCaducidad.trim()
+
+                errorMensaje = ""
+                onConfirmEdit(nombre.trim(), cantidad, unidadFinal, fechaFinal)
             }) {
                 Text("Guardar cambios")
             }
@@ -734,35 +835,32 @@ fun EditarProductoDialog(
     )
 }
 
+
 @Composable
 fun CrearProductoDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, Int, String, String) -> Unit
 ) {
     var nombre by remember { mutableStateOf("") }
-    var cantidadInput by remember { mutableStateOf("1") } // input como string
-    var unidad by remember { mutableStateOf("unidad") }
+    var cantidadInput by remember { mutableStateOf("1") }
+    var unidad by remember { mutableStateOf("") } // ← ahora empieza vacía
     var fechaCaducidad by remember { mutableStateOf("") }
 
     var errorMensajeBottom by remember { mutableStateOf("") }
     var errorMensajeNombre by remember { mutableStateOf("") }
-    var errorMensajeUnidad by remember { mutableStateOf("") }
 
     val maxNombre = 30
-    val maxUnidad = 15
-    val maxCantidadDigits = 10
 
     fun esFechaValida(fecha: String): Boolean {
         return try {
-            if (fecha.isBlank()) return true
+            if (fecha.isBlank()) return true // ← si está en blanco, es válida
             val formato = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
             formato.isLenient = false
-            formato.parse(fecha) != null // Si no lanza excepción, es válida
+            formato.parse(fecha) != null
         } catch (e: Exception) {
             false
         }
     }
-
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -778,12 +876,11 @@ fun CrearProductoDialog(
                             "El nombre no puede superar los $maxNombre caracteres."
                         } else ""
                     },
-                    label = { Text("Nombre") },
+                    label = { Text("Nombre", color = Color.Gray) },
                     singleLine = true,
                     isError = errorMensajeNombre.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth()
                 )
-
                 if (errorMensajeNombre.isNotEmpty()) {
                     Text(errorMensajeNombre, color = Color.Red, fontSize = 12.sp)
                 }
@@ -798,39 +895,31 @@ fun CrearProductoDialog(
                             cantidadInput = input
                         }
                     },
-                    label = { Text("Cantidad") },
+                    label = { Text("Cantidad", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(Modifier.height(8.dp))
 
-                // UNIDAD
+                // UNIDAD (opcional)
                 OutlinedTextField(
                     value = unidad,
                     onValueChange = {
                         unidad = it
-                        errorMensajeUnidad = if (!it.matches(Regex("^[\\p{L}]{0,$maxUnidad}$"))) {
-                            "Solo se permiten letras (máx. $maxUnidad)"
-                        } else ""
                     },
-                    label = { Text("Unidad (ej: kg, litros, paquetes...)") },
+                    label = { Text("Unidad (ej: kg)", color = Color.Gray) },
                     singleLine = true,
-                    isError = errorMensajeUnidad.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                if (errorMensajeUnidad.isNotEmpty()) {
-                    Text(errorMensajeUnidad, color = Color.Red, fontSize = 12.sp)
-                }
-
                 Spacer(Modifier.height(8.dp))
 
-                // FECHA
+                // FECHA (opcional)
                 OutlinedTextField(
                     value = fechaCaducidad,
                     onValueChange = { fechaCaducidad = it },
-                    label = { Text("Fecha caducidad (dd/MM/yyyy)") },
+                    label = { Text("Fecha caducidad (dd/MM/yyyy)", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -845,28 +934,28 @@ fun CrearProductoDialog(
             TextButton(onClick = {
                 val cantidadNum = cantidadInput.toDoubleOrNull() ?: -1.0
 
-                if (nombre.isBlank() || unidad.isBlank() || cantidadInput.isBlank()) {
-                    errorMensajeBottom = "Completa todos los campos correctamente."
+                if (nombre.isBlank() || cantidadNum <= 0.0) {
+                    errorMensajeBottom = "El nombre y la cantidad son obligatorios y válidos."
                     return@TextButton
                 }
-                if (nombre.length > 30) {
-                    errorMensajeNombre = "El nombre es demasiado largo (máx. ${30} caracteres)."
+
+                if (nombre.length > maxNombre) {
+                    errorMensajeNombre = "El nombre es demasiado largo (máx. $maxNombre)."
                     return@TextButton
                 }
-                if (!unidad.matches(Regex("^[a-zA-Z]{1,15}\$"))) {
-                    errorMensajeUnidad = "Unidad inválida. Solo letras (máx. ${15})."
-                    return@TextButton
-                }
+
                 if (!esFechaValida(fechaCaducidad)) {
-                    errorMensajeBottom = "La fecha debe estar en formato válido y no ser pasada."
+                    errorMensajeBottom = "La fecha debe tener un formato válido (dd/MM/yyyy)."
                     return@TextButton
                 }
+
+                val unidadFinal = if (unidad.isBlank()) "unidades" else unidad.trim()
+                val fechaFinal = fechaCaducidad.trim()
 
                 errorMensajeBottom = ""
                 errorMensajeNombre = ""
-                errorMensajeUnidad = ""
 
-                onConfirm(nombre.trim(), cantidadNum.toInt(), unidad.trim(), fechaCaducidad.trim())
+                onConfirm(nombre.trim(), cantidadNum.toInt(), unidadFinal, fechaFinal)
             }) {
                 Text("Crear")
             }
@@ -878,7 +967,6 @@ fun CrearProductoDialog(
         }
     )
 }
-
 
 @Composable
 fun DeleteProductoDialog(
@@ -895,6 +983,101 @@ fun DeleteProductoDialog(
         confirmButton = {
             TextButton(onClick = onConfirmDelete) {
                 Text("Eliminar", color = Color.Red)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
+fun AgregarAListaCompraDialog(
+    producto: Producto,
+    cantidad: String,
+    unidades: String,
+    detalles: String,
+    onCantidadChange: (String) -> Unit,
+    onUnidadesChange: (String) -> Unit,
+    onDetallesChange: (String) -> Unit,
+    errorCantidad: String,
+    errorUnidades: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Añadir a lista de compra") },
+        text = {
+            Column {
+                Text("Producto: ${producto.nombre}")
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = cantidad,
+                    onValueChange = onCantidadChange,
+                    label = { Text("Cantidad a reponer", color = Color.Gray) },
+                    isError = errorCantidad.isNotEmpty(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (errorCantidad.isNotEmpty()) {
+                    Text(errorCantidad, color = Color.Red, fontSize = 12.sp)
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = unidades,
+                    onValueChange = onUnidadesChange,
+                    label = { Text("Unidades", color = Color.Gray) },
+                    isError = errorUnidades.isNotEmpty(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (errorUnidades.isNotEmpty()) {
+                    Text(errorUnidades, color = Color.Red, fontSize = 12.sp)
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = detalles,
+                    onValueChange = onDetallesChange,
+                    label = { Text("Detalles (opcional)", color = Color.Gray) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Añadir")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
+fun AbandonarDespensaDialog(
+    despensaNombre: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Abandonar despensa") },
+        text = { Text("¿Estás seguro de que quieres abandonar la despensa \"$despensaNombre\"? Esta acción no se puede deshacer.") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Sí, abandonar")
             }
         },
         dismissButton = {

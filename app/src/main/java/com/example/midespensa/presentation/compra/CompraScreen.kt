@@ -44,273 +44,6 @@ import androidx.compose.ui.unit.sp
 import com.example.midespensa.data.model.Despensa
 import com.example.midespensa.data.model.ProductoCompra
 import com.example.midespensa.ui.theme.DarkGray
-//
-//@Composable
-//fun CompraScreen(
-//    navController: NavController,
-//    viewModel: CompraViewModel = viewModel(),
-//    productoPreseleccionado: String? = null
-//) {
-//    val despensas by viewModel.despensas.collectAsState()
-//    val productosMap by viewModel.listasCompra.collectAsState()
-//    val context = LocalContext.current
-//    var codigoDespensaAbierta by remember { mutableStateOf<String?>(null) }
-//
-//    var mostrarDialogoSalir by remember { mutableStateOf(false) }
-//    var showDialog by remember { mutableStateOf(false) }
-//    var despensaParaAgregar by remember { mutableStateOf<Despensa?>(null) }
-//
-//    // Editar info de un producto
-//    var productoEditando by remember { mutableStateOf<ProductoCompra?>(null) }
-//    var showEditarDialog by remember { mutableStateOf(false) }
-//
-//    // Controlar scroll padre e hijo
-//    val nestedScrollConnection = remember {
-//        object : NestedScrollConnection {}
-//    }
-//
-//    val estadosExpansion = remember {
-//        mutableStateOf<Map<String, Boolean>>(emptyMap())
-//    }
-//
-//    LaunchedEffect(Unit) {
-//        viewModel.cargarDespensasUsuario()
-//    }
-//
-//    BackHandler { mostrarDialogoSalir = true }
-//
-//    if (mostrarDialogoSalir) {
-//        AlertDialog(
-//            onDismissRequest = { mostrarDialogoSalir = false },
-//            title = { Text("Confirmar cierre") },
-//            text = { Text("¿Estás seguro de que quieres cerrar sesión?") },
-//            confirmButton = {
-//                TextButton(onClick = {
-//                    mostrarDialogoSalir = false
-//                    viewModel.logout {
-//                        navController.navigate("login") {
-//                            popUpTo("cuenta") { inclusive = true }
-//                        }
-//                    }
-//                }) { Text("Cerrar sesión") }
-//            },
-//            dismissButton = {
-//                TextButton(onClick = { mostrarDialogoSalir = false }) { Text("Cancelar") }
-//            }
-//        )
-//    }
-//
-//    Scaffold(
-//        topBar = {
-//            Column {
-//                HeaderSection(title = "Compras")
-//                HorizontalDivider(thickness = 1.5.dp)
-//            }
-//        },
-//        bottomBar = {
-//            Column {
-//                HorizontalDivider(thickness = 1.5.dp)
-//                BottomSection(navController = navController)
-//            }
-//        },
-//        containerColor = GreenBack
-//    ) { padding ->
-//
-//        Column(
-//            modifier = Modifier
-//                .fillMaxSize()
-//                .background(Color.White)
-//                .padding(padding)
-//                .padding(bottom = 10.dp),
-//            verticalArrangement = Arrangement.Top
-//        ) {
-//            // LazyColumn General de despensas
-//            LazyColumn(
-//                modifier = Modifier.fillMaxWidth(),
-//                horizontalAlignment = Alignment.CenterHorizontally,
-//                userScrollEnabled = (codigoDespensaAbierta == null)
-//            ) {
-//
-//                items(despensas.count()) { despensa ->
-//                    val isExpanded = codigoDespensaAbierta == despensas.get(despensa).codigo
-//
-//                    Column(modifier = Modifier.fillMaxWidth()) {
-//                        Row(
-//                            verticalAlignment = Alignment.CenterVertically,
-//                            modifier = Modifier
-//                                .fillMaxWidth()
-//                                .padding(32.dp, 18.dp)
-//                                .clickable {
-//                                    codigoDespensaAbierta =
-//                                        if (isExpanded) null else despensas.get(despensa).codigo
-//                                }
-//                        ) {
-//                            Text(
-//                                text = despensas.get(despensa).nombre,
-//                                fontWeight = FontWeight.SemiBold,
-//                                style = MaterialTheme.typography.titleLarge,
-//                                modifier = Modifier.weight(1f)
-//                            )
-//                            Icon(
-//                                imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-//                                contentDescription = null
-//                            )
-//                        }
-//
-//                        AnimatedVisibility(visible = isExpanded) {
-//                            Column(
-//                                modifier = Modifier
-//                                    .fillMaxWidth()
-//                                    .padding(start = 32.dp, end = 32.dp, top = 8.dp, bottom = 8.dp)
-//                            ) {
-//                                Row(
-//                                    modifier = Modifier.fillMaxWidth(),
-//                                    horizontalArrangement = Arrangement.SpaceBetween,
-//                                    verticalAlignment = Alignment.CenterVertically
-//                                ) {
-//                                    Text(
-//                                        text = "Lista de productos",
-//                                        style = MaterialTheme.typography.titleMedium,
-//                                        fontWeight = FontWeight.SemiBold
-//                                    )
-//                                    Row {
-//                                        TextButton(onClick = {
-//                                            viewModel.vaciarListaDespensa(despensas.get(despensa).codigo)
-//                                        }) {
-//                                            Text("Vaciar")
-//                                        }
-//                                        Spacer(Modifier.width(8.dp))
-//                                        TextButton(
-//                                            onClick = {
-//                                                despensaParaAgregar = despensas.get(despensa)
-//                                                showDialog = true
-//                                            },
-//                                            colors = ButtonDefaults.buttonColors(containerColor = DarkGray),
-//                                            shape = MaterialTheme.shapes.small,
-//                                            modifier = Modifier.align(Alignment.CenterVertically),
-//                                            contentPadding = PaddingValues(horizontal = 12.dp)
-//                                        ) {
-//                                            Text("Añadir")
-//                                        }
-//                                    }
-//                                }
-//
-//                                val productos =
-//                                    productosMap[despensas.get(despensa).codigo].orEmpty()
-//
-//                                if (productos.isNotEmpty()) {
-//                                    Spacer(Modifier.height(8.dp))
-//                                    HorizontalDivider(thickness = 1.dp)
-//                                    Spacer(Modifier.height(8.dp))
-//                                }
-//
-//                                val scroll = rememberScrollState()
-//
-//                                Box(
-//                                    modifier = Modifier
-//                                        .fillMaxWidth()
-//                                        .heightIn(max = 200.dp)
-//                                        .verticalScroll(scroll)
-//                                ) {
-//                                    Column {
-//                                        productos.forEach { producto ->
-//                                            OutlinedCard(
-//                                                modifier = Modifier
-//                                                    .fillMaxWidth()
-//                                                    .padding(vertical = 4.dp)
-//                                                    .clickable {
-//                                                        productoEditando = producto
-//                                                        despensaParaAgregar = despensas[despensa]
-//                                                        showEditarDialog = true
-//                                                    },
-//                                                colors = CardDefaults.cardColors(containerColor = Color.White)
-//                                            ) {
-//                                                Row(
-//                                                    modifier = Modifier
-//                                                        .fillMaxWidth()
-//                                                        .padding(12.dp),
-//                                                    verticalAlignment = Alignment.CenterVertically
-//                                                ) {
-//                                                    Column(modifier = Modifier.weight(1f)) {
-//                                                        Text(
-//                                                            producto.nombre,
-//                                                            fontWeight = FontWeight.Bold
-//                                                        )
-//                                                        Text(
-//                                                            "${producto.cantidad} ${
-//                                                                producto.unidades
-//                                                            }", fontSize = 13.sp
-//                                                        )
-//                                                        if (producto.detalles.isNotBlank()) {
-//                                                            Text(
-//                                                                producto.detalles,
-//                                                                fontSize = 12.sp,
-//                                                                color = Color.Gray
-//                                                            )
-//                                                        }
-//                                                    }
-//                                                    IconButton(onClick = {
-//                                                        viewModel.eliminarProducto(
-//                                                            despensas[despensa].codigo,
-//                                                            producto.id
-//                                                        )
-//                                                    }) {
-//                                                        Icon(
-//                                                            Icons.Default.Delete,
-//                                                            contentDescription = "Eliminar"
-//                                                        )
-//                                                    }
-//                                                }
-//                                            }
-//                                        }
-//                                    }
-//                                }
-//                            }
-//                        }
-//                    }
-//                    HorizontalDivider(thickness = 0.7.dp, color = Color.LightGray)
-//                }
-//            }
-//
-//
-//            // Dialogo de agregar producto
-//            if (showDialog && despensaParaAgregar != null) {
-//                AgregarProductoDialog(
-//                    nombreInicial = productoPreseleccionado.orEmpty(),
-//                    onConfirm = { nombre, cantidad, unidades, detalles ->
-//                        viewModel.agregarProducto(
-//                            codigoDespensa = despensaParaAgregar!!.codigo,
-//                            nombre = nombre,
-//                            cantidad = cantidad,
-//                            unidades = unidades,
-//                            detalles = detalles
-//                        )
-//                        showDialog = false
-//                    },
-//                    onDismiss = { showDialog = false }
-//                )
-//            }
-//            // Dialogo de editar producto
-//            if (showEditarDialog && productoEditando != null) {
-//                EditarProductoDialog(
-//                    producto = productoEditando!!,
-//                    onConfirm = { nuevaCantidad, nuevosDetalles ->
-//                        viewModel.editarProducto(
-//                            despensaCodigo = despensaParaAgregar?.codigo
-//                                ?: return@EditarProductoDialog,
-//                            productoId = productoEditando!!.id,
-//                            nuevaCantidad = nuevaCantidad,
-//                            nuevosDetalles = nuevosDetalles
-//                        )
-//                        showEditarDialog = false
-//                    },
-//                    onDismiss = { showEditarDialog = false }
-//                )
-//            }
-//
-//        }
-//    }
-//}
 
 @Composable
 fun CompraScreen(
@@ -324,7 +57,7 @@ fun CompraScreen(
     var codigoDespensaAbierta by remember { mutableStateOf<String?>(null) }
 
     var mostrarDialogoSalir by remember { mutableStateOf(false) }
-    var showDialog by remember { mutableStateOf(false) }
+    var showAgregarProductoDialog by remember { mutableStateOf(false) }
     var despensaParaAgregar by remember { mutableStateOf<Despensa?>(null) }
 
     // Editar info de un producto
@@ -447,7 +180,7 @@ fun CompraScreen(
                                     TextButton(
                                         onClick = {
                                             despensaParaAgregar = despensas.get(despensa)
-                                            showDialog = true
+                                            showAgregarProductoDialog = true
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = DarkGray),
                                         shape = MaterialTheme.shapes.small,
@@ -487,6 +220,7 @@ fun CompraScreen(
                                                 .padding(vertical = 4.dp)
                                                 .clickable {
                                                     productoEditando = productos.get(producto)
+                                                    showEditarDialog = true
                                                 },
                                             colors = CardDefaults.cardColors(containerColor = Color.White)
                                         ) {
@@ -542,7 +276,7 @@ fun CompraScreen(
         }
 
         // Diálogo de Añadir
-        if (showDialog && despensaParaAgregar != null) {
+        if (showAgregarProductoDialog && despensaParaAgregar != null) {
             AgregarProductoDialog(
                 nombreInicial = productoPreseleccionado.orEmpty(),
                 onConfirm = { nombre, cantidad, unidades, detalles ->
@@ -553,20 +287,21 @@ fun CompraScreen(
                         unidades = unidades,
                         detalles = detalles
                     )
-                    showDialog = false
+                    showAgregarProductoDialog = false
                 },
-                onDismiss = { showDialog = false }
+                onDismiss = { showAgregarProductoDialog = false }
             )
         }
         // Diálogo de Editar
         if (showEditarDialog && productoEditando != null) {
             EditarProductoDialog(
                 producto = productoEditando!!,
-                onConfirm = { nuevaCantidad, nuevosDetalles ->
+                onConfirm = { nuevaCantidad, nuevasUnidades, nuevosDetalles ->
                     viewModel.editarProducto(
                         despensaCodigo = despensaParaAgregar!!.codigo,
                         productoId = productoEditando!!.id,
                         nuevaCantidad = nuevaCantidad,
+                        nuevasUnidades = nuevasUnidades,
                         nuevosDetalles = nuevosDetalles
                     )
                     showEditarDialog = false
@@ -606,43 +341,84 @@ fun CompraScreen(
     }
 }
 
-
 @Composable
 fun EditarProductoDialog(
     producto: ProductoCompra,
-    onConfirm: (nuevaCantidad: Int, nuevosDetalles: String) -> Unit,
+    onConfirm: (nuevaCantidad: Int, nuevasUnidades: String, nuevosDetalles: String) -> Unit,
     onDismiss: () -> Unit
 ) {
     var cantidad by remember { mutableStateOf(producto.cantidad.toString()) }
-    var detalles by remember { mutableStateOf(producto.detalles) }
+    var unidades by remember { mutableStateOf(producto.unidades ?: "") }
+    var detalles by remember { mutableStateOf(producto.detalles ?: "") }
+
+    var errorCantidad by remember { mutableStateOf("") }
+    var errorUnidades by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Editar producto") },
         text = {
             Column {
+                // CANTIDAD
                 OutlinedTextField(
                     value = cantidad,
                     onValueChange = {
-                        if (it.matches(Regex("^\\d{0,5}\$"))) cantidad = it
+                        if (it.matches(Regex("^\\d{0,5}$"))) cantidad = it
                     },
-                    label = { Text("Cantidad") },
+                    label = { Text("Cantidad", color = Color.Gray) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = errorCantidad.isNotEmpty()
                 )
+                if (errorCantidad.isNotEmpty()) {
+                    Text(errorCantidad, color = Color.Red, fontSize = 12.sp)
+                }
+
                 Spacer(Modifier.height(8.dp))
+
+                // UNIDADES (opcional)
+                OutlinedTextField(
+                    value = unidades,
+                    onValueChange = {
+                        unidades = it
+                        errorUnidades = if (it.isNotBlank() && !it.matches(Regex("^[\\p{L}]{1,15}$"))) {
+                            "Solo letras (máx. 15)"
+                        } else ""
+                    },
+                    label = { Text("Unidades", color = Color.Gray) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = errorUnidades.isNotEmpty()
+                )
+                if (errorUnidades.isNotEmpty()) {
+                    Text(errorUnidades, color = Color.Red, fontSize = 12.sp)
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                // DETALLES (opcional)
                 OutlinedTextField(
                     value = detalles,
                     onValueChange = { detalles = it },
-                    label = { Text("Detalles") },
+                    label = { Text("Detalles (opcional)", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                val nuevaCantidad = cantidad.toIntOrNull() ?: return@TextButton
-                onConfirm(nuevaCantidad, detalles.trim())
+                val cantidadInt = cantidad.toIntOrNull()
+                if (cantidadInt == null || cantidadInt <= 0) {
+                    errorCantidad = "La cantidad debe ser un número positivo"
+                    return@TextButton
+                }
+
+                val unidadesFinal = if (unidades.isBlank()) "unidades" else unidades.trim()
+
+                if (errorUnidades.isNotEmpty()) return@TextButton
+
+                errorCantidad = ""
+                onConfirm(cantidadInt, unidadesFinal, detalles.trim())
             }) {
                 Text("Guardar")
             }
@@ -655,7 +431,6 @@ fun EditarProductoDialog(
     )
 }
 
-// Composable: DialogoAgregarProducto
 @Composable
 fun AgregarProductoDialog(
     nombreInicial: String = "",
@@ -664,7 +439,7 @@ fun AgregarProductoDialog(
 ) {
     var nombre by remember { mutableStateOf(nombreInicial) }
     var cantidad by remember { mutableStateOf("1") }
-    var unidades by remember { mutableStateOf("unidad") }
+    var unidades by remember { mutableStateOf("") }
     var detalles by remember { mutableStateOf("") }
     var errorMensaje by remember { mutableStateOf("") }
 
@@ -676,7 +451,7 @@ fun AgregarProductoDialog(
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = { nombre = it },
-                    label = { Text("Nombre") },
+                    label = { Text("Nombre", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -684,9 +459,9 @@ fun AgregarProductoDialog(
                 OutlinedTextField(
                     value = cantidad,
                     onValueChange = {
-                        if (it.matches(Regex("^\\d{0,10}\$"))) cantidad = it
+                        if (it.matches(Regex("^\\d{0,10}$"))) cantidad = it
                     },
-                    label = { Text("Cantidad") },
+                    label = { Text("Cantidad", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -694,9 +469,9 @@ fun AgregarProductoDialog(
                 OutlinedTextField(
                     value = unidades,
                     onValueChange = {
-                        if (it.matches(Regex("^[\\p{L}]{0,15}\$"))) unidades = it
+                        if (it.matches(Regex("^[\\p{L}]{0,15}$"))) unidades = it
                     },
-                    label = { Text("Unidades") },
+                    label = { Text("Unidades", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -704,7 +479,7 @@ fun AgregarProductoDialog(
                 OutlinedTextField(
                     value = detalles,
                     onValueChange = { detalles = it },
-                    label = { Text("Detalles") },
+                    label = { Text("Detalles (opcional)", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 if (errorMensaje.isNotBlank()) {
@@ -716,12 +491,15 @@ fun AgregarProductoDialog(
         confirmButton = {
             TextButton(onClick = {
                 val cantidadInt = cantidad.toIntOrNull()
-                if (nombre.isBlank() || cantidadInt == null || cantidadInt <= 0 || unidades.isBlank()) {
-                    errorMensaje = "Todos los campos son obligatorios y válidos."
+                if (nombre.isBlank() || cantidadInt == null || cantidadInt <= 0) {
+                    errorMensaje = "El nombre y la cantidad son obligatorios y válidos."
                     return@TextButton
                 }
+
+                val unidadesFinal = if (unidades.isBlank()) "unidades" else unidades.trim()
+
                 errorMensaje = ""
-                onConfirm(nombre.trim(), cantidadInt, unidades.trim(), detalles.trim())
+                onConfirm(nombre.trim(), cantidadInt, unidadesFinal, detalles.trim())
             }) {
                 Text("Añadir")
             }
@@ -733,6 +511,7 @@ fun AgregarProductoDialog(
         }
     )
 }
+
 
 
 

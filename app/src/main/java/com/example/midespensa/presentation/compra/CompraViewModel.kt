@@ -96,7 +96,7 @@ class CompraViewModel : ViewModel() {
             }
     }
 
-    fun editarProducto(despensaCodigo: String, productoId: String, nuevaCantidad: Int, nuevosDetalles: String) {
+    fun editarProducto(despensaCodigo: String, productoId: String, nuevaCantidad: Int, nuevasUnidades: String, nuevosDetalles: String) {
         db.collection("despensas")
             .whereEqualTo("codigo", despensaCodigo)
             .get()
@@ -110,6 +110,7 @@ class CompraViewModel : ViewModel() {
                     .update(
                         mapOf(
                             "cantidad" to nuevaCantidad,
+                            "unidades" to nuevasUnidades,
                             "detalles" to nuevosDetalles
                         )
                     )
