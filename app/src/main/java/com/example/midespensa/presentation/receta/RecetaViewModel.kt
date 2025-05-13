@@ -1,20 +1,157 @@
 package com.example.midespensa.presentation.receta
 
+import android.util.Log
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.midespensa.data.model.Receta
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import com.google.mlkit.nl.translate.TranslateLanguage
+import com.google.mlkit.nl.translate.Translation
+import com.google.mlkit.nl.translate.Translator
+import com.google.mlkit.nl.translate.TranslatorOptions
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
-class RecetaViewModel: ViewModel() {
+class RecetaViewModel : ViewModel() {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
-    private val db = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
-
     val user: FirebaseUser? = auth.currentUser
+
+    // States
+    private val _recetasEnglish = mutableStateOf<List<Receta>>(emptyList())
+    private val _recetasTranslated = mutableStateOf<List<Receta>>(emptyList())
+    private val _showTranslated = mutableStateOf(false)
+    private val _isLoading = mutableStateOf(false)
+
+    // Exposed
+    val recetas: State<List<Receta>> = derivedStateOf {
+        if (_showTranslated.value) _recetasTranslated.value else _recetasEnglish.value
+    }
+    val isLoading: State<Boolean> = _isLoading
+    val showTranslated: State<Boolean> = _showTranslated
+
+    // Edamam keys
+    private val appId = "b0e21ed4"
+    private val appKey = "4d358f163ca0241eecfe44afcd28796a"
+
+    // ML Kit translator
+    private val translator: Translator by lazy {
+        val opts = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.ENGLISH)
+            .setTargetLanguage(TranslateLanguage.SPANISH)
+            .build()
+        Translation.getClient(opts)
+    }
+
+    init {
+        // Descargar modelo ML Kit al iniciar
+        viewModelScope.launch {
+            try {
+                translator.downloadModelIfNeeded().await()
+                Log.d("RecetaVM", "Modelo ML Kit descargado")
+            } catch (e: Exception) {
+                Log.e("RecetaVM", "Error descargando modelo ML Kit: ${e.message}")
+            }
+        }
+    }
+
+    fun toggleTranslation() {
+        _showTranslated.value = !_showTranslated.value
+    }
+
+    fun buscarRecetas(query: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+
+            // 1) Fetch recetas en Idioma Original
+            val ingles = withContext(Dispatchers.IO) {
+                try {
+                    val url =
+                        "https://api.edamam.com/api/recipes/v2?type=public&q=$query&app_id=$appId&app_key=$appKey&to=5"
+                    val client = HttpClient(CIO) {
+                        install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+                    }
+                    val response: JsonObject = client.get(url) {
+                        user?.uid?.let { header("Edamam-Account-User", it) }
+                    }.body()
+
+                    response["hits"]?.jsonArray?.mapNotNull { hit ->
+                        val r = hit.jsonObject["recipe"]?.jsonObject ?: return@mapNotNull null
+                        Receta(
+                            label = r["label"]!!.jsonPrimitive.content,
+                            image = r["image"]!!.jsonPrimitive.content,
+                            url = r["url"]!!.jsonPrimitive.content,
+                            yield = r["yield"]?.jsonPrimitive?.intOrNull ?: 1,
+                            ingredientLines = r["ingredientLines"]!!.jsonArray.map {
+                                it.jsonPrimitive.content
+                            }
+                        )
+                    } ?: emptyList()
+                } catch (e: Exception) {
+                    Log.e("RecetaVM", "Error al buscar recetas: ${e.message}")
+                    emptyList()
+                }
+            }
+
+            _recetasEnglish.value = ingles
+
+            // 2) Traducir en paralelo con ML Kit
+            val traducidas = ingles.map { receta ->
+                async(Dispatchers.Default) {
+                    val labelEs = traducirOffline(receta.label)
+                    val ingredEs = receta.ingredientLines.map { traducirOffline(it) }
+                    receta.copy(label = labelEs, ingredientLines = ingredEs)
+                }
+            }.awaitAll()
+
+            // 3) Delay para animación
+            delay(200)
+
+            // 4) Actualizar UI
+            _recetasTranslated.value = traducidas
+            _isLoading.value = false
+        }
+    }
+
+    /**
+     * Traduce texto offline usando ML Kit
+     */
+    private suspend fun traducirOffline(texto: String): String =
+        suspendCancellableCoroutine { cont ->
+            translator.translate(texto)
+                .addOnSuccessListener { cont.resume(it) }
+                .addOnFailureListener { cont.resumeWithException(it) }
+        }
 
     fun logout(onLogout: () -> Unit) {
         auth.signOut()
         onLogout()
     }
 }
+

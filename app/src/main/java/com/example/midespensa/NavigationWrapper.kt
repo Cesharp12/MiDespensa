@@ -20,7 +20,7 @@ fun NavigationWrapper(navHostController: NavHostController){
 
     NavHost(
         navController = navHostController,
-        startDestination = "inicio" // Ruta inicial
+        startDestination = "receta" // Ruta inicial
     ) {
         composable("login") {
             LoginScreen(navController = navHostController)
