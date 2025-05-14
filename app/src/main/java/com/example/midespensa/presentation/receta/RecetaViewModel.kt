@@ -60,8 +60,13 @@ class RecetaViewModel : ViewModel() {
     private val appId = "b0e21ed4"
     private val appKey = "4d358f163ca0241eecfe44afcd28796a"
 
-    // ML Kit translator
-    private val translator: Translator by lazy {
+    // Recetas en favoritos
+    private val db = FirebaseFirestore.getInstance()
+    private val _favorites = mutableStateOf<List<Receta>>(emptyList())
+    val favorites: State<List<Receta>> = _favorites
+
+    // ML Kit translators
+    private val enToEsTranslator: Translator by lazy {
         val opts = TranslatorOptions.Builder()
             .setSourceLanguage(TranslateLanguage.ENGLISH)
             .setTargetLanguage(TranslateLanguage.SPANISH)
@@ -69,14 +74,23 @@ class RecetaViewModel : ViewModel() {
         Translation.getClient(opts)
     }
 
+    private val esToEnTranslator: Translator by lazy {
+        val opts = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.SPANISH)
+            .setTargetLanguage(TranslateLanguage.ENGLISH)
+            .build()
+        Translation.getClient(opts)
+    }
+
     init {
-        // Descargar modelo ML Kit al iniciar
+        // Descargar ambos modelos al iniciar
         viewModelScope.launch {
             try {
-                translator.downloadModelIfNeeded().await()
-                Log.d("RecetaVM", "Modelo ML Kit descargado")
+                enToEsTranslator.downloadModelIfNeeded().await()
+                esToEnTranslator.downloadModelIfNeeded().await()
+                Log.d("RecetaVM", "Modelos ML Kit descargados")
             } catch (e: Exception) {
-                Log.e("RecetaVM", "Error descargando modelo ML Kit: ${e.message}")
+                Log.e("RecetaVM", "Error descargando modelos: ${e.message}")
             }
         }
     }
@@ -89,11 +103,16 @@ class RecetaViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
 
+            // 0) Traducir consulta de ES a EN
+            val queryEn = withContext(Dispatchers.Default) {
+                traducirOffline(query, esToEnTranslator)
+            }
+
             // 1) Fetch recetas en Idioma Original
             val ingles = withContext(Dispatchers.IO) {
                 try {
                     val url =
-                        "https://api.edamam.com/api/recipes/v2?type=public&q=$query&app_id=$appId&app_key=$appKey&to=5"
+                        "https://api.edamam.com/api/recipes/v2?type=public&q=$queryEn&app_id=$appId&app_key=$appKey&to=5"
                     val client = HttpClient(CIO) {
                         install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
                     }
@@ -124,8 +143,8 @@ class RecetaViewModel : ViewModel() {
             // 2) Traducir en paralelo con ML Kit
             val traducidas = ingles.map { receta ->
                 async(Dispatchers.Default) {
-                    val labelEs = traducirOffline(receta.label)
-                    val ingredEs = receta.ingredientLines.map { traducirOffline(it) }
+                    val labelEs = traducirOffline(receta.label, enToEsTranslator)
+                    val ingredEs = receta.ingredientLines.map { traducirOffline(it, enToEsTranslator) }
                     receta.copy(label = labelEs, ingredientLines = ingredEs)
                 }
             }.awaitAll()
@@ -142,12 +161,80 @@ class RecetaViewModel : ViewModel() {
     /**
      * Traduce texto offline usando ML Kit
      */
-    private suspend fun traducirOffline(texto: String): String =
-        suspendCancellableCoroutine { cont ->
-            translator.translate(texto)
-                .addOnSuccessListener { cont.resume(it) }
-                .addOnFailureListener { cont.resumeWithException(it) }
+    private suspend fun traducirOffline(
+        texto: String,
+        translator: Translator
+    ): String = suspendCancellableCoroutine { cont ->
+        translator.translate(texto)
+            .addOnSuccessListener { cont.resume(it) }
+            .addOnFailureListener { cont.resumeWithException(it) }
+    }
+
+    init {
+        user?.uid?.let { uid ->
+            db.collection("usuarios").document(uid)
+                .addSnapshotListener { snap, _ ->
+                    val favs = snap?.get("recetas") as? List<Map<String,Any>> ?: emptyList()
+                    _favorites.value = favs.map { map ->
+                        Receta(
+                            label = map["label"] as String,
+                            image = map["image"] as String,
+                            url = map["url"] as String,
+                            yield = (map["yield"] as Long).toInt(),
+                            ingredientLines = map["ingredientLines"] as List<String>
+                        )
+                    }
+                }
         }
+    }
+
+
+    fun toggleFavorite(receta: Receta) {
+        val uid = user?.uid ?: return
+        val actuales = _favorites.value.toMutableList()
+        if (actuales.any { it.url == receta.url }) {
+            actuales.removeAll { it.url == receta.url }
+        } else {
+            actuales.add(receta)
+        }
+        // Reconstruye la lista entera bajo el mismo campo
+        val data = actuales.map { r ->
+            mapOf(
+                "label" to r.label,
+                "image" to r.image,
+                "url" to r.url,
+                "yield" to r.yield,
+                "ingredientLines" to r.ingredientLines
+            )
+        }
+        db.collection("usuarios")
+            .document(uid)
+            .update("recetas", data)
+            .addOnFailureListener { Log.e("RecetaVM", "Error fav: $it") }
+    }
+
+//    fun toggleFavorite(receta: Receta) {
+//        val uid = user?.uid ?: return
+//        val actuales = _favorites.value.toMutableList()
+//        if (actuales.any { it.url == receta.url }) {
+//            actuales.removeAll { it.url == receta.url }
+//        } else {
+//            actuales.add(receta)
+//        }
+//        // Actualiza Firestore
+//        val data = actuales.map { r ->
+//            mapOf(
+//                "label" to r.label,
+//                "image" to r.image,
+//                "url" to r.url,
+//                "yield" to r.yield,
+//                "ingredientLines" to r.ingredientLines
+//            )
+//        }
+//            db.collection("usuarios").document(uid)
+//                .update("recetas", data)
+//                .addOnFailureListener { Log.e("RecetaVM", "Error fav: $it") }
+//    }
 
     fun logout(onLogout: () -> Unit) {
         auth.signOut()

@@ -21,13 +21,22 @@ import com.example.midespensa.presentation.components.HeaderSection
 import com.example.midespensa.presentation.components.BottomSection
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -37,6 +46,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.sp
+import com.example.midespensa.data.model.Receta
 import com.example.midespensa.ui.theme.GreenConfirm
 
 
@@ -50,6 +60,9 @@ fun RecetaScreen(navController: NavController, viewModel: RecetaViewModel = view
     val recetas by viewModel.recetas
     var searchQuery by remember { mutableStateOf("") }
     val showTrad by viewModel.showTranslated
+        // favoritos
+    val favs by viewModel.favorites
+
 
     // Animación de carga
     val isLoading by viewModel.isLoading
@@ -101,24 +114,25 @@ fun RecetaScreen(navController: NavController, viewModel: RecetaViewModel = view
         },
         containerColor = GreenBack
     ) { padding ->
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
                 .padding(padding)
-                .padding(horizontal = 32.dp, vertical = 20.dp)
                 .pointerInput(Unit) {
                     detectTapGestures(onTap = { focusManager.clearFocus() })
                 }
         ) {
-
+            FavoritesDropdown(favorites = viewModel.favorites.value)
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 32.dp, vertical = 20.dp)
+                    ,
                 verticalArrangement = Arrangement.SpaceBetween,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(Modifier.height(15.dp))
+                Spacer(Modifier.height(70.dp))
 
                 Text(
                     "Buscar recetas",
@@ -200,7 +214,21 @@ fun RecetaScreen(navController: NavController, viewModel: RecetaViewModel = view
                                             .padding(8.dp)
                                     ) {
                                         Column(Modifier.padding(16.dp)) {
-                                            Text(recetas.get(receta).label, style = MaterialTheme.typography.titleMedium)
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(recetas.get(receta).label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                                                IconButton(onClick = { viewModel.toggleFavorite(recetas.get(receta)) }) {
+                                                    Icon(
+                                                        imageVector = if (favs.any { it.url == recetas.get(receta).url }) Icons.Default.Star else Icons.Default.StarBorder,
+                                                        contentDescription = "Añadir a favoritos",
+                                                        tint = if (favs.any { it.url == recetas.get(receta).url })
+                                                              Color(0xFFFFC107)
+                                                        else
+                                                            Color.Gray
+                                                    )
+
+
+                                                }
+                                            }
                                             Text("Para ${recetas.get(receta).yield} personas", style = MaterialTheme.typography.bodySmall)
                                             Spacer(Modifier.height(8.dp))
                                             Text("Ingredientes:")
@@ -221,43 +249,44 @@ fun RecetaScreen(navController: NavController, viewModel: RecetaViewModel = view
                         }
                     }
                 }
-//                LazyColumn(
-//                    modifier = Modifier.fillMaxSize()
-//                ) {
-//                    items(recetas.count()) { receta ->
-//                        OutlinedCard(
-//                            modifier = Modifier
-//                                .fillMaxWidth()
-//                                .padding(8.dp),
-////                            colors = CardDefaults.cardColors(containerColor = backgroundColor)
-//                        ) {
-//                            Column(modifier = Modifier.padding(16.dp)) {
-//                                Text(text = recetas.get(receta).label, style = MaterialTheme.typography.titleMedium)
-//                                Text(text = "Para ${recetas.get(receta).yield} personas", style = MaterialTheme.typography.bodySmall)
-//
-//                                Spacer(Modifier.height(8.dp))
-//
-//                                Text("Ingredientes:")
-//                                recetas.get(receta).ingredientLines.forEach {
-//                                    Text("• $it", style = MaterialTheme.typography.bodySmall)
-//                                }
-//
-//                                Spacer(Modifier.height(8.dp))
-//
-//                                Button(
-//                                    onClick = {
-//                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(recetas.get(receta).url))
-//                                        context.startActivity(intent)
-//                                    }
-//                                ) {
-//                                    Text("Ver receta completa")
-//                                }
-//                            }
-//                        }
-//                    }
-//                }
             }
         }
     }
 }
+
+@Composable
+fun FavoritesDropdown(favorites: List<Receta>) {
+    var expanded by remember { mutableStateOf(false) }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFFFFF59D))
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 32.dp, vertical = 20.dp)
+        ) {
+            Text("Favoritos", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+            Icon(
+                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null
+            )
+        }
+        AnimatedVisibility(visible = expanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 200.dp) // limita espacio
+                    .padding(horizontal = 32.dp, vertical = 8.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                favorites.forEach { receta ->
+                    Text(receta.label, modifier = Modifier.padding(vertical = 4.dp))
+                }
+            }
+        }
+    }
+
+}
+
 
