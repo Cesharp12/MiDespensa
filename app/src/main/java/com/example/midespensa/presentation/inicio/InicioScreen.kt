@@ -24,7 +24,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
@@ -37,12 +36,27 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
-import androidx.navigation.compose.rememberNavController
 import com.example.midespensa.data.model.Despensa
+import com.example.midespensa.notifications.NotificationTestHelper
 import com.example.midespensa.ui.theme.DarkGray
 import com.example.midespensa.ui.theme.GreenConfirm
+
+@Composable
+fun NotificacionTestButton() {
+    val context = LocalContext.current
+
+    Button(onClick = {
+        NotificationTestHelper.mostrarNotiTest(
+            context,
+            despensa = "Despensa Prueba",
+            producto = "Huevos",
+            razon = "están a punto de caducar"
+        )
+    }) {
+        Text("Testear Notificación")
+    }
+}
 
 @Composable
 fun InicioScreen(navController: NavController, viewModel: InicioViewModel = viewModel()) {
@@ -77,7 +91,7 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                     mostrarDialogoSalir = false
                     viewModel.logout {
                         navController.navigate("login") {
-                            popUpTo("cuenta") { inclusive = true }
+                            popUpTo("inicio") { inclusive = true }
                         }
                     }
                 }) {
@@ -129,7 +143,7 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Spacer(Modifier.height(15.dp))
-
+//                    NotificacionTestButton()
                     Text(
                         "Unirse a despensa",
                         fontSize = 25.sp,

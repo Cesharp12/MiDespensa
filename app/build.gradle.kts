@@ -91,9 +91,10 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    implementation("androidx.work:work-runtime-ktx:2.9.0") // o versión más reciente
 
     implementation("com.google.mlkit:translate:17.0.2")
-
+    implementation("androidx.work:work-runtime-ktx:2.8.1")
     implementation("io.ktor:ktor-client-core:2.3.7")
     implementation("io.ktor:ktor-client-cio:2.3.7")
     implementation("io.ktor:ktor-client-content-negotiation:2.3.7")

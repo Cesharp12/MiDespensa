@@ -16,11 +16,11 @@ import com.example.midespensa.presentation.register.RegisterScreen
 
 
 @Composable
-fun NavigationWrapper(navHostController: NavHostController){
+fun NavigationWrapper(navHostController: NavHostController, startDestination: String){
 
     NavHost(
         navController = navHostController,
-        startDestination = "receta" // Ruta inicial
+        startDestination = startDestination // Ruta inicial
     ) {
         composable("login") {
             LoginScreen(navController = navHostController)

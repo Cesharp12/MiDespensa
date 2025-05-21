@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -62,180 +61,21 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Info
 import com.example.midespensa.ui.theme.GreenConfirm
 import kotlinx.coroutines.delay
+import androidx.compose.ui.viewinterop.AndroidView
+import android.widget.DatePicker
+import java.util.Calendar
 
-
-@Composable
-fun DespensaHeader(
-    viewModel: DespensaViewModel = viewModel(),
-    nombre: String,
-    codigo: String,
-    descripcion: String,
-    colorHex: String,
-    miembros: List<String>,
-    isExpanded: Boolean,
-    onToggleExpand: () -> Unit,
-    onLeave: () -> Unit
-) {
-    val context = LocalContext.current
-    val backgroundColor = Color(android.graphics.Color.parseColor(colorHex.ifBlank { "#FFCC00" })) // por defecto amarillo
-    val chevronIcon = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown
-    // Gestor para copiar al portapapeles
-    val clipboardManager: ClipboardManager = LocalClipboardManager.current
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(backgroundColor)
-            .padding(12.dp)
-    ) {
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = "Código de despensa: $codigo",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f)
-            )
-
-            IconButton(onClick = {
-                clipboardManager.setText(AnnotatedString(codigo))
-                Toast.makeText(context, "Código copiado", Toast.LENGTH_SHORT).show()
-            }) {
-                Icon(imageVector = Icons.Default.ContentCopy, contentDescription = "Copiar código")
-            }
-
-            IconButton(onClick = onToggleExpand) {
-                Icon(imageVector = chevronIcon, contentDescription = "Expandir")
-            }
-        }
-
-        AnimatedVisibility(visible = isExpanded) {
-            Column(modifier = Modifier.padding(top = 12.dp)) {
-                var editando by remember { mutableStateOf(false) }
-                var nuevaDescripcion by remember { mutableStateOf(descripcion) }
-
-                if (editando) {
-                    OutlinedTextField(
-                        value = nuevaDescripcion,
-                        onValueChange = { if (it.length <= 40) nuevaDescripcion = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text("Editar descripción") }
-                    )
-
-                    Spacer(Modifier.height(8.dp))
-                    Row {
-                        Button(
-                            shape = MaterialTheme.shapes.medium,
-                            onClick = {
-                            viewModel.actualizarDescripcion(nuevaDescripcion) { success ->
-                                if (success) editando = false ; Toast.makeText(context, "Descripción actualizada", Toast.LENGTH_SHORT).show()
-                            }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF1B5E20), // verde oscuro
-                                contentColor = Color.White
-                            )) {
-                            Text("Guardar")
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Button(
-                            onClick = { editando = false },
-                            shape = MaterialTheme.shapes.medium,
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color(0xFFB00020), // rojo oscuro
-                                contentColor = Color.White
-                            )
-                            ) {
-                            Text("Cancelar")
-                        }
-                    }
-                } else {
-                    Text(descripcion)
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        shape = MaterialTheme.shapes.medium,
-                        onClick = {
-                        nuevaDescripcion = descripcion
-                        editando = true
-                        },
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color(0xFF2E2E2E), // negro clarito
-                            contentColor = Color.White
-                        )) {
-                        Text("Editar descripción")
-                    }
-                }
-                Spacer(Modifier.height(10.dp))
-                ColorPickerSection(
-                    // Error en colorDespensa
-                    currentColorHex = colorHex,
-                    onColorSelected = { nuevoColor ->
-                        viewModel.actualizarColorDespensa(nuevoColor)
-                    }
-                )
-
-                Spacer(Modifier.height(12.dp))
-                Text("Miembros:", fontWeight = FontWeight.Bold)
-                miembros.forEach {
-                    Text("• $it")
-                }
-                Spacer(Modifier.height(12.dp))
-
-                Button(
-                    onClick = onLeave,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = RedCancel,
-                        contentColor = Color.White
-                    ),
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Abandonar despensa")
-                }
-            }
-        }
-
-    }
-}
-
-@Composable
-fun ColorPickerSection(
-    currentColorHex: String,
-    onColorSelected: (String) -> Unit
-) {
-    val coloresDisponibles = listOf(
-        "#FFF59D", // Amarillo clarito
-        "#FFD180", // Naranja clarito
-        "#A5D6A7", // Verde clarito
-        "#90CAF9", // Azul clarito
-        "#CE93D8", // Lila clarito
-        "#EF9A9A", // Rojo clarito
-        "#80DEEA"  // Celeste clarito
-    )
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
-        coloresDisponibles.forEach { colorHex ->
-            val color = Color(android.graphics.Color.parseColor(colorHex))
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(color, shape = CircleShape)
-                    .border(
-                        width = if (colorHex == currentColorHex) 3.dp else 1.dp,
-                        color = if (colorHex == currentColorHex) Color.Black else Color.Gray,
-                        shape = CircleShape
-                    )
-                    .clickable { onColorSelected(colorHex) }
-            )
-        }
-    }
-}
+// prueba spinner
+import android.widget.LinearLayout
+import android.widget.NumberPicker
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 
 @Composable
 fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = viewModel(), codigoDespensa: String) {
@@ -649,6 +489,179 @@ fun ProductoItem(
 }
 
 @Composable
+fun DespensaHeader(
+    viewModel: DespensaViewModel = viewModel(),
+    nombre: String,
+    codigo: String,
+    descripcion: String,
+    colorHex: String,
+    miembros: List<String>,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    onLeave: () -> Unit
+) {
+    val context = LocalContext.current
+    val backgroundColor = Color(android.graphics.Color.parseColor(colorHex.ifBlank { "#FFCC00" })) // por defecto amarillo
+    val chevronIcon = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown
+    // Gestor para copiar al portapapeles
+    val clipboardManager: ClipboardManager = LocalClipboardManager.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(backgroundColor)
+            .padding(12.dp)
+    ) {
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "Código de despensa: $codigo",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f)
+            )
+
+            IconButton(onClick = {
+                clipboardManager.setText(AnnotatedString(codigo))
+                Toast.makeText(context, "Código copiado", Toast.LENGTH_SHORT).show()
+            }) {
+                Icon(imageVector = Icons.Default.ContentCopy, contentDescription = "Copiar código")
+            }
+
+            IconButton(onClick = onToggleExpand) {
+                Icon(imageVector = chevronIcon, contentDescription = "Expandir")
+            }
+        }
+
+        AnimatedVisibility(visible = isExpanded) {
+            Column(modifier = Modifier.padding(top = 12.dp)) {
+                var editando by remember { mutableStateOf(false) }
+                var nuevaDescripcion by remember { mutableStateOf(descripcion) }
+
+                if (editando) {
+                    OutlinedTextField(
+                        value = nuevaDescripcion,
+                        onValueChange = { if (it.length <= 40) nuevaDescripcion = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Editar descripción") }
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+                    Row {
+                        Button(
+                            shape = MaterialTheme.shapes.medium,
+                            onClick = {
+                                viewModel.actualizarDescripcion(nuevaDescripcion) { success ->
+                                    if (success) editando = false ; Toast.makeText(context, "Descripción actualizada", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF1B5E20), // verde oscuro
+                                contentColor = Color.White
+                            )) {
+                            Text("Guardar")
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            onClick = { editando = false },
+                            shape = MaterialTheme.shapes.medium,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color(0xFFB00020), // rojo oscuro
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text("Cancelar")
+                        }
+                    }
+                } else {
+                    Text(descripcion)
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        shape = MaterialTheme.shapes.medium,
+                        onClick = {
+                            nuevaDescripcion = descripcion
+                            editando = true
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color(0xFF2E2E2E), // negro clarito
+                            contentColor = Color.White
+                        )) {
+                        Text("Editar descripción")
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                ColorPickerSection(
+                    // Error en colorDespensa
+                    currentColorHex = colorHex,
+                    onColorSelected = { nuevoColor ->
+                        viewModel.actualizarColorDespensa(nuevoColor)
+                    }
+                )
+
+                Spacer(Modifier.height(12.dp))
+                Text("Miembros:", fontWeight = FontWeight.Bold)
+                miembros.forEach {
+                    Text("• $it")
+                }
+                Spacer(Modifier.height(12.dp))
+
+                Button(
+                    onClick = onLeave,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = RedCancel,
+                        contentColor = Color.White
+                    ),
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Abandonar despensa")
+                }
+            }
+        }
+
+    }
+}
+
+@Composable
+fun ColorPickerSection(
+    currentColorHex: String,
+    onColorSelected: (String) -> Unit
+) {
+    val coloresDisponibles = listOf(
+        "#FFF59D", // Amarillo clarito
+        "#FFD180", // Naranja clarito
+        "#A5D6A7", // Verde clarito
+        "#90CAF9", // Azul clarito
+        "#CE93D8", // Lila clarito
+        "#EF9A9A", // Rojo clarito
+        "#80DEEA"  // Celeste clarito
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        coloresDisponibles.forEach { colorHex ->
+            val color = Color(android.graphics.Color.parseColor(colorHex))
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(color, shape = CircleShape)
+                    .border(
+                        width = if (colorHex == currentColorHex) 3.dp else 1.dp,
+                        color = if (colorHex == currentColorHex) Color.Black else Color.Gray,
+                        shape = CircleShape
+                    )
+                    .clickable { onColorSelected(colorHex) }
+            )
+        }
+    }
+}
+
+@Composable
 fun ProductoItemSwipeable(
     producto: Producto,
     onDelete: (Producto) -> Unit,
@@ -737,6 +750,13 @@ fun EditarProductoDialog(
 
     var errorMensaje by remember { mutableStateOf("") }
 
+    // Calendar
+    val calendar = remember { Calendar.getInstance() }
+    val pickerHeightDp = 120.dp
+    val pickerHeightPx = with(LocalDensity.current) {
+        pickerHeightDp.toPx().toInt()
+    }
+
     fun esFechaValida(fecha: String): Boolean {
         return try {
             if (fecha.isBlank()) return true
@@ -788,16 +808,88 @@ fun EditarProductoDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(Modifier.height(8.dp))
+                // Checkbox para desactivar fecha
+                var sinFecha by remember { mutableStateOf(false) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = sinFecha,
+                        onCheckedChange = {
+                            sinFecha = it
+                            if (it) fechaCaducidad = ""    // limpia la fecha si se activa
+                        }
+                    )
+                    Text("Sin fecha de caducidad")
+                }
 
-                // FECHA (opcional)
-                OutlinedTextField(
-                    value = fechaCaducidad,
-                    onValueChange = { fechaCaducidad = it },
-                    label = { Text("Fecha caducidad (dd/MM/yyyy)", color = Color.Gray) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // FECHA
+                if (!sinFecha) {
+                    Text("Fecha de caducidad (opcional)", fontSize = 14.sp, color = Color.Gray)
+                    val pickerHeight: Dp = 120.dp
+                    AndroidView(
+                        factory = { ctx ->
+                            // Contenedor horizontal
+                            LinearLayout(ctx).apply {
+                                orientation = LinearLayout.HORIZONTAL
+                            }.also { container ->
+                                // Parámetros de cada NumberPicker
+                                val params = LinearLayout.LayoutParams(0, pickerHeightPx, 1f)
+
+                                // Día
+                                NumberPicker(ctx).apply {
+                                    minValue = 1
+                                    maxValue = 31
+                                    value = calendar.get(Calendar.DAY_OF_MONTH)
+                                    setOnValueChangedListener { _, _, new ->
+                                        calendar.set(Calendar.DAY_OF_MONTH, new)
+                                        fechaCaducidad = "%02d/%02d/%04d".format(
+                                            new,
+                                            calendar.get(Calendar.MONTH) + 1,
+                                            calendar.get(Calendar.YEAR)
+                                        )
+                                    }
+                                }.also { it.layoutParams = params }
+                                    .let(container::addView)
+
+                                // Mes
+                                NumberPicker(ctx).apply {
+                                    minValue = 1
+                                    maxValue = 12
+                                    displayedValues = Array(12) { i -> "%02d".format(i + 1) }
+                                    value = calendar.get(Calendar.MONTH) + 1
+                                    setOnValueChangedListener { _, _, new ->
+                                        calendar.set(Calendar.MONTH, new - 1)
+                                        fechaCaducidad = "%02d/%02d/%04d".format(
+                                            calendar.get(Calendar.DAY_OF_MONTH),
+                                            new,
+                                            calendar.get(Calendar.YEAR)
+                                        )
+                                    }
+                                }.also { it.layoutParams = params }
+                                    .let(container::addView)
+
+                                // Año
+                                NumberPicker(ctx).apply {
+                                    val year = calendar.get(Calendar.YEAR)
+                                    minValue = year - 50
+                                    maxValue = year + 10
+                                    value = year
+                                    setOnValueChangedListener { _, _, new ->
+                                        calendar.set(Calendar.YEAR, new)
+                                        fechaCaducidad = "%02d/%02d/%04d".format(
+                                            calendar.get(Calendar.DAY_OF_MONTH),
+                                            calendar.get(Calendar.MONTH) + 1,
+                                            new
+                                        )
+                                    }
+                                }.also { it.layoutParams = params }
+                                    .let(container::addView)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(pickerHeight)
+                    )
+                }
 
                 if (errorMensaje.isNotBlank()) {
                     Spacer(Modifier.height(6.dp))
@@ -835,7 +927,6 @@ fun EditarProductoDialog(
     )
 }
 
-
 @Composable
 fun CrearProductoDialog(
     onDismiss: () -> Unit,
@@ -843,17 +934,19 @@ fun CrearProductoDialog(
 ) {
     var nombre by remember { mutableStateOf("") }
     var cantidadInput by remember { mutableStateOf("1") }
-    var unidad by remember { mutableStateOf("") } // ← ahora empieza vacía
+    var unidad by remember { mutableStateOf("") }
     var fechaCaducidad by remember { mutableStateOf("") }
 
     var errorMensajeBottom by remember { mutableStateOf("") }
     var errorMensajeNombre by remember { mutableStateOf("") }
 
+    val calendar = remember { Calendar.getInstance() }
+
     val maxNombre = 30
 
     fun esFechaValida(fecha: String): Boolean {
         return try {
-            if (fecha.isBlank()) return true // ← si está en blanco, es válida
+            if (fecha.isBlank()) return true
             val formato = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
             formato.isLenient = false
             formato.parse(fecha) != null
@@ -862,12 +955,17 @@ fun CrearProductoDialog(
         }
     }
 
+    val pickerHeightDp = 120.dp
+    val pickerHeightPx = with(LocalDensity.current) {
+        pickerHeightDp.toPx().toInt()
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Añadir nuevo producto") },
         text = {
             Column {
-                // NOMBRE
+                // Nombre
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = {
@@ -887,7 +985,7 @@ fun CrearProductoDialog(
 
                 Spacer(Modifier.height(8.dp))
 
-                // CANTIDAD
+                // Cantidad
                 OutlinedTextField(
                     value = cantidadInput,
                     onValueChange = { input ->
@@ -902,27 +1000,102 @@ fun CrearProductoDialog(
 
                 Spacer(Modifier.height(8.dp))
 
-                // UNIDAD (opcional)
+                // Unidad
                 OutlinedTextField(
                     value = unidad,
-                    onValueChange = {
-                        unidad = it
-                    },
+                    onValueChange = { unidad = it },
                     label = { Text("Unidad (ej: kg)", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Spacer(Modifier.height(8.dp))
+                // Checkbox para desactivar fecha
+                var sinFecha by remember { mutableStateOf(false) }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = sinFecha,
+                        onCheckedChange = {
+                            sinFecha = it
+                            if (it) fechaCaducidad = ""    // limpia la fecha si se activa
+                        }
+                    )
+                    Text("Sin fecha de caducidad")
+                }
 
-                // FECHA (opcional)
-                OutlinedTextField(
-                    value = fechaCaducidad,
-                    onValueChange = { fechaCaducidad = it },
-                    label = { Text("Fecha caducidad (dd/MM/yyyy)", color = Color.Gray) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // FECHA
+                if (!sinFecha) {
+                    Text("Fecha de caducidad (opcional)", fontSize = 14.sp, color = Color.Gray)
+                    val pickerHeight: Dp = 120.dp
+                    AndroidView(
+                        factory = { ctx ->
+                            // Contenedor horizontal
+                            LinearLayout(ctx).apply {
+                                orientation = LinearLayout.HORIZONTAL
+                            }.also { container ->
+                                // Parámetros de cada NumberPicker
+                                val params = LinearLayout.LayoutParams(0, pickerHeightPx, 1f)
+
+                                // Día
+                                NumberPicker(ctx).apply {
+                                    minValue = 1
+                                    maxValue = 31
+                                    value = calendar.get(Calendar.DAY_OF_MONTH)
+                                    setOnValueChangedListener { _, _, new ->
+                                        calendar.set(Calendar.DAY_OF_MONTH, new)
+                                        fechaCaducidad = "%02d/%02d/%04d".format(
+                                            new,
+                                            calendar.get(Calendar.MONTH) + 1,
+                                            calendar.get(Calendar.YEAR)
+                                        )
+                                    }
+                                }.also { it.layoutParams = params }
+                                    .let(container::addView)
+
+                                // Mes
+                                NumberPicker(ctx).apply {
+                                    minValue = 1
+                                    maxValue = 12
+                                    displayedValues = Array(12) { i -> "%02d".format(i + 1) }
+                                    value = calendar.get(Calendar.MONTH) + 1
+                                    setOnValueChangedListener { _, _, new ->
+                                        calendar.set(Calendar.MONTH, new - 1)
+                                        fechaCaducidad = "%02d/%02d/%04d".format(
+                                            calendar.get(Calendar.DAY_OF_MONTH),
+                                            new,
+                                            calendar.get(Calendar.YEAR)
+                                        )
+                                    }
+                                }.also { it.layoutParams = params }
+                                    .let(container::addView)
+
+                                // Año
+                                NumberPicker(ctx).apply {
+                                    val year = calendar.get(Calendar.YEAR)
+                                    minValue = year - 50
+                                    maxValue = year + 10
+                                    value = year
+                                    setOnValueChangedListener { _, _, new ->
+                                        calendar.set(Calendar.YEAR, new)
+                                        fechaCaducidad = "%02d/%02d/%04d".format(
+                                            calendar.get(Calendar.DAY_OF_MONTH),
+                                            calendar.get(Calendar.MONTH) + 1,
+                                            new
+                                        )
+                                    }
+                                }.also { it.layoutParams = params }
+                                    .let(container::addView)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(pickerHeight)
+                    )
+                }
+
+                if (fechaCaducidad.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text("Fecha seleccionada: $fechaCaducidad", fontSize = 13.sp)
+                }
 
                 if (errorMensajeBottom.isNotEmpty()) {
                     Spacer(Modifier.height(6.dp))
@@ -967,6 +1140,7 @@ fun CrearProductoDialog(
         }
     )
 }
+
 
 @Composable
 fun DeleteProductoDialog(

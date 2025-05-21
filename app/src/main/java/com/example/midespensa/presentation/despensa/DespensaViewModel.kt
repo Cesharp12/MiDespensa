@@ -1,18 +1,15 @@
 package com.example.midespensa.presentation.despensa
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.example.midespensa.data.model.Producto
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -147,7 +144,13 @@ class DespensaViewModel : ViewModel() {
             .addOnFailureListener { _error.value = "Error al reponer unidades" }
     }
 
-    fun actualizarProducto(producto: Producto, nombre: String, cantidad: Int, unidad: String, caducidad: String) {
+    fun actualizarProducto(
+        producto: Producto,
+        nombre: String,
+        cantidad: Int,
+        unidad: String,
+        caducidad: String
+    ) {
         val despensa = despensaId ?: return
 
         val estado = calcularEstadoDesdeFecha(caducidad)
@@ -180,7 +183,12 @@ class DespensaViewModel : ViewModel() {
             .addOnFailureListener { _error.value = "Error al eliminar producto" }
     }
 
-    fun agregarProductoListaCompra(producto: Producto, cantidadAReponer: Int?, unidades: String, detalles: String) {
+    fun agregarProductoListaCompra(
+        producto: Producto,
+        cantidadAReponer: Int?,
+        unidades: String,
+        detalles: String
+    ) {
         val despensaId = despensaId ?: return
         val nuevo = hashMapOf(
             "nombre" to producto.nombre,

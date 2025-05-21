@@ -84,7 +84,7 @@ fun CompraScreen(
                     mostrarDialogoSalir = false
                     viewModel.logout {
                         navController.navigate("login") {
-                            popUpTo("cuenta") { inclusive = true }
+                            popUpTo("inicio") { inclusive = true }
                         }
                     }
                 }) { Text("Cerrar sesión") }

@@ -1,5 +1,9 @@
 package com.example.midespensa.presentation.cuenta
 
+import android.app.TimePickerDialog
+import android.content.Context
+import android.util.Log
+import android.widget.NumberPicker
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,12 +36,23 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.midespensa.ui.theme.DarkGray
+import com.example.midespensa.ui.theme.GreenConfirm
+
+import com.example.midespensa.notifications.NotificationConfig
+import com.example.midespensa.notifications.NotificationWorker
+import com.example.midespensa.notifications.WorkScheduler
+import java.util.concurrent.TimeUnit
 
 
 @Composable
@@ -64,7 +79,7 @@ fun CuentaScreen(navController: NavController, viewModel: CuentaViewModel = view
                         mostrarDialogoSalir = false
                         viewModel.logout {
                             navController.navigate("login") {
-                                popUpTo("cuenta") { inclusive = true }
+                                popUpTo("inicio") { inclusive = true }
                             }
                         }
                     }) {
@@ -101,6 +116,12 @@ fun CuentaScreen(navController: NavController, viewModel: CuentaViewModel = view
             }
         }
     )
+
+    // Estado para la hora seleccionada
+    val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+    var hour by remember { mutableStateOf(prefs.getInt("notif_hour", 9)) }
+    var minute by remember { mutableStateOf(prefs.getInt("notif_minute", 0)) }
+    var showPicker by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -182,12 +203,19 @@ fun CuentaScreen(navController: NavController, viewModel: CuentaViewModel = view
             )
             {
                 Text(
-                    "Correo electrónico:  ",
+                    "Correo electrónico  ",
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp,
                     color = Color.Black
                 )
-
+            }
+            Spacer(Modifier.height(5.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start
+            )
+            {
                 Text(
                     user?.email ?: "Sin email",
                     fontSize = 17.sp,
@@ -195,33 +223,211 @@ fun CuentaScreen(navController: NavController, viewModel: CuentaViewModel = view
                 )
             }
 
-//            Row(
-//                modifier = Modifier
-//                    .fillMaxWidth(),
-//                horizontalArrangement = Arrangement.Start
-//            )
-//            {
-//                Button(
-//                    onClick = {
-//                        launcher.launch("image/*")
-//                    },
-//                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray),
-//                    modifier = Modifier
-//                        .fillMaxWidth(),
-//                    shape = MaterialTheme.shapes.medium
-//                ) {
-//                    Text("Cambiar foto de perfil")
-//                }
-//
-//            }
-
-            // TODO: Lista de despensas a las que pertenece el usuario
-
             Spacer(Modifier.height(25.dp))
 
             HorizontalDivider(thickness = 2.dp)
 
             Spacer(Modifier.height(15.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start
+            )
+            {
+                Text(
+                    "Configuración de notificaciones",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    color = Color.Black
+                )
+            }
+            Spacer(Modifier.height(15.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically
+            )
+            {
+                Icon(
+                    imageVector = Icons.Default.Info, // ← Icono típico de información
+                    contentDescription = "Info",
+                    tint = LightGraySub,
+                    modifier = Modifier.size(18.dp)
+                )
+
+                Spacer(Modifier.width(10.dp))
+
+                Text(
+                    "Aquí puedes configurar a qué hora recibir alertas sobre el estado de la caducidad de los productos pertenecientes a las despensas existentes.",
+                    fontSize = 15.sp,
+                    color = LightGraySub,
+                    textAlign = TextAlign.Justify,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+            }
+
+            Spacer(Modifier.height(20.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            )
+            {
+                Text(
+                    if(minute >= 0 && minute < 10) "Hora de notificación: $hour:0$minute" else "Hora de notificación: $hour:$minute",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = Color.Black
+                )
+            }
+
+//            Row(
+//                modifier = Modifier
+//                    .fillMaxWidth(),
+//                horizontalArrangement = Arrangement.Center
+//            )
+//            {
+//                // Botón para abrir TimePicker
+//                Button(onClick = {
+//                    TimePickerDialog(context, { timePicker, horaSelected, _ ->
+//                        //Establecer color de fondo
+//                        val color = android.graphics.Color.parseColor("#E6FFE6")
+//                        timePicker.setBackgroundColor(color)
+//
+//                        hora = horaSelected
+//                        settings.edit()
+//                            .putInt("hora_notif", hora)
+//                            .apply()
+//
+//                        NotificationConfig.scheduleDailyWorkerAtHour(context, horaSelected)
+//
+//                        Toast.makeText(context, "Notificaciones cada día a las $horaSelected:00", Toast.LENGTH_SHORT).show()
+//                    }, hora, 0, true).show()
+//                },
+//                    colors = ButtonDefaults.buttonColors(containerColor = GreenConfirm),
+//                    modifier = Modifier
+//                        .fillMaxWidth(),
+//                    shape = MaterialTheme.shapes.small
+//                    ) {
+//                    Text("Cambiar hora de notificación".format(hora, "00"))
+//                }
+//            }
+
+//            Button(onClick = {
+//                tempHour = hora
+//                showHourPicker = true
+//            },
+//                colors = ButtonDefaults.buttonColors(containerColor = GreenConfirm),
+//                modifier = Modifier.fillMaxWidth(),
+//                shape = MaterialTheme.shapes.small
+//            ) {
+//                Text("Cambiar hora de notificación: %02d:00".format(hora))
+//            }
+//
+//            if (showHourPicker) {
+//                AlertDialog(
+//                    onDismissRequest = { showHourPicker = false },
+//                    title = { Text("Selecciona la hora") },
+//                    text = {
+//                        AndroidView(
+//                            factory = { ctx ->
+//                                NumberPicker(ctx).apply {
+//                                    minValue = 0
+//                                    maxValue = 23
+//                                    value = tempHour
+//                                    wrapSelectorWheel = true
+//                                    setOnValueChangedListener { _, _, newVal ->
+//                                        tempHour = newVal
+//                                    }
+//                                }
+//                            },
+//                            modifier = Modifier
+//                                .fillMaxWidth()
+//                                .height(150.dp)
+//                                .wrapContentHeight(align = Alignment.CenterVertically)
+//                        )
+//                    },
+//                    confirmButton = {
+//                        TextButton(onClick = {
+//                            hora = tempHour
+//                            settings.edit().putInt("notif_hour", tempHour).apply()
+//                            NotificationConfig.scheduleDailyWorkerAtHour(context, hora)
+//                            Toast.makeText(
+//                                context,
+//                                "Notificaciones cada día a las %02d:00".format(hora),
+//                                Toast.LENGTH_SHORT
+//                            ).show()
+//                            showHourPicker = false
+//                        }) {
+//                            Text("OK")
+//                        }
+//                    },
+//                    dismissButton = {
+//                        TextButton(onClick = { showHourPicker = false }) {
+//                            Text("Cancelar")
+//                        }
+//                    }
+//                )
+//            }
+
+            Column(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+
+                Button(onClick = { showPicker = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = GreenConfirm),
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    shape = MaterialTheme.shapes.small
+                    ) {
+                    Text("Cambiar hora de notificación")
+                }
+
+                if (showPicker) {
+                    // TimePickerDialog nativo
+                    TimePickerDialog(
+                        context,
+                        { _, h, m ->
+                            hour = h; minute = m
+                            showPicker = false
+
+                            // Guardar en prefs
+                            prefs.edit()
+                                .putInt("notif_hour", hour)
+                                .putInt("notif_minute", minute)
+                                .apply()
+
+                            // Programar WorkManager
+                            WorkScheduler.scheduleDailyNotification(context, hour, minute)
+                            Toast.makeText(
+                                context,
+                                "Notificación diaria programada con éxito",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        },
+                        hour,
+                        minute,
+                        true
+                    ).show()
+                }
+            }
+            //TEST
+            Button(onClick = {
+                val req = OneTimeWorkRequestBuilder<NotificationWorker>()
+                    .setInitialDelay(10, TimeUnit.SECONDS)
+                    .build()
+                WorkManager.getInstance(context).enqueue(req)
+                Log.d("DebugTest", "One-time worker enqueued")
+                Toast.makeText(context, "Worker de prueba encolado", Toast.LENGTH_SHORT).show()
+            }) {
+                Text("Probar notificación ahora")
+            }
+
+            Spacer(Modifier.height(20.dp))
 
             Button(
                 onClick = {
