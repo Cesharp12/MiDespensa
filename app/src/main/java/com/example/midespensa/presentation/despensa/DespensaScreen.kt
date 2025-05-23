@@ -49,7 +49,6 @@ import com.example.midespensa.ui.theme.estadoCaducado
 import com.example.midespensa.ui.theme.estadoDeterioro
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import androidx.compose.ui.unit.IntOffset
 import kotlin.math.roundToInt
@@ -59,27 +58,22 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Info
-import com.example.midespensa.ui.theme.GreenConfirm
 import kotlinx.coroutines.delay
 import androidx.compose.ui.viewinterop.AndroidView
-import android.widget.DatePicker
 import java.util.Calendar
 
 // prueba spinner
 import android.widget.LinearLayout
 import android.widget.NumberPicker
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 
 @Composable
 fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = viewModel(), codigoDespensa: String) {
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
 
     val nombreDespensa by viewModel.nombreDespensa.collectAsState()
     val descripcionDespensa by viewModel.descripcionDespensa.collectAsState()
@@ -381,6 +375,8 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
                     unidades = unidadesFinal,
                     detalles = detalles.trim()
                 )
+
+                Toast.makeText(context, "Producto agregado a la lista", Toast.LENGTH_SHORT).show()
 
                 showAddToCompraDialog = false
             },
@@ -745,13 +741,24 @@ fun EditarProductoDialog(
 ) {
     var nombre by remember { mutableStateOf(producto.nombre) }
     var cantidadInput by remember { mutableStateOf(producto.cantidad.toString()) }
-    var unidad by remember { mutableStateOf(producto.unidad) }
+    var unidades by remember { mutableStateOf(producto.unidad) }
     var fechaCaducidad by remember { mutableStateOf(producto.caducidad) }
+
+    val sdf = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
 
     var errorMensaje by remember { mutableStateOf("") }
 
     // Calendar
-    val calendar = remember { Calendar.getInstance() }
+//    val calendar = remember { Calendar.getInstance() }
+    val calendar = remember {
+        Calendar.getInstance().apply {
+            if (producto.caducidad.isNotBlank()) {
+                try {
+                    time = sdf.parse(producto.caducidad)!!
+                } catch (_: Exception) {  }
+            }
+        }
+    }
     val pickerHeightDp = 120.dp
     val pickerHeightPx = with(LocalDensity.current) {
         pickerHeightDp.toPx().toInt()
@@ -776,7 +783,9 @@ fun EditarProductoDialog(
                 // NOMBRE
                 OutlinedTextField(
                     value = nombre,
-                    onValueChange = { nombre = it },
+                    onValueChange = { input ->
+                        nombre = input.take(30)
+                    },
                     label = { Text("Nombre", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -801,9 +810,12 @@ fun EditarProductoDialog(
 
                 // UNIDAD (opcional)
                 OutlinedTextField(
-                    value = unidad,
-                    onValueChange = { unidad = it },
-                    label = { Text("Unidad (ej: kg)", color = Color.Gray) },
+                    value = unidades,
+                    onValueChange = { input ->
+                        unidades = input.take(20)
+                    },
+                    label = { Text("Unidades (opcional)", color = Color.Gray) },
+                    placeholder = { Text("ej: kg", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -899,22 +911,29 @@ fun EditarProductoDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                val cantidad = cantidadInput.toIntOrNull()
-                if (nombre.isBlank() || cantidad == null || cantidad <= 0) {
-                    errorMensaje = "El nombre y la cantidad son obligatorios y válidos."
+                val cantidadInt = cantidadInput.toIntOrNull()
+                if (nombre.isBlank() || cantidadInt == null || cantidadInt <= 0) {
+                    errorMensaje = "El nombre y la cantidad son obligatorios."
                     return@TextButton
                 }
 
                 if (!esFechaValida(fechaCaducidad)) {
-                    errorMensaje = "La fecha debe tener un formato válido (dd/MM/yyyy)."
                     return@TextButton
                 }
 
-                val unidadFinal = if (unidad.isBlank()) "unidades" else unidad.trim()
+                var unidadesFinal = "";
+                if (unidades.isBlank() &&  cantidadInt > 1){
+                    unidadesFinal = "unidades"
+                } else if (unidades.isBlank() && cantidadInt == 1){
+                    unidadesFinal = "unidad"
+                } else {
+                    unidadesFinal = unidades.trim()
+                }
+
                 val fechaFinal = fechaCaducidad.trim()
 
                 errorMensaje = ""
-                onConfirmEdit(nombre.trim(), cantidad, unidadFinal, fechaFinal)
+                onConfirmEdit(nombre.trim(), cantidadInt, unidadesFinal, fechaFinal)
             }) {
                 Text("Guardar cambios")
             }
@@ -933,8 +952,8 @@ fun CrearProductoDialog(
     onConfirm: (String, Int, String, String) -> Unit
 ) {
     var nombre by remember { mutableStateOf("") }
-    var cantidadInput by remember { mutableStateOf("1") }
-    var unidad by remember { mutableStateOf("") }
+    var cantidad by remember { mutableStateOf("1") }
+    var unidades by remember { mutableStateOf("") }
     var fechaCaducidad by remember { mutableStateOf("") }
 
     var errorMensajeBottom by remember { mutableStateOf("") }
@@ -969,10 +988,7 @@ fun CrearProductoDialog(
                 OutlinedTextField(
                     value = nombre,
                     onValueChange = {
-                        nombre = it
-                        errorMensajeNombre = if (it.length > maxNombre) {
-                            "El nombre no puede superar los $maxNombre caracteres."
-                        } else ""
+                        nombre = it.take(30)
                     },
                     label = { Text("Nombre", color = Color.Gray) },
                     singleLine = true,
@@ -987,10 +1003,10 @@ fun CrearProductoDialog(
 
                 // Cantidad
                 OutlinedTextField(
-                    value = cantidadInput,
+                    value = cantidad,
                     onValueChange = { input ->
                         if (input.length <= 7 && input.matches(Regex("^\\d*(\\.\\d{0,2})?$"))) {
-                            cantidadInput = input
+                            cantidad = input
                         }
                     },
                     label = { Text("Cantidad", color = Color.Gray) },
@@ -1002,9 +1018,12 @@ fun CrearProductoDialog(
 
                 // Unidad
                 OutlinedTextField(
-                    value = unidad,
-                    onValueChange = { unidad = it },
-                    label = { Text("Unidad (ej: kg)", color = Color.Gray) },
+                    value = unidades,
+                    onValueChange = { input ->
+                        unidades = input.take(20)
+                    },
+                    label = { Text("Unidades (opcional)", color = Color.Gray) },
+                    placeholder = { Text("ej: kg", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1105,30 +1124,34 @@ fun CrearProductoDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                val cantidadNum = cantidadInput.toDoubleOrNull() ?: -1.0
+                val cantidadInt = cantidad.toIntOrNull()
 
-                if (nombre.isBlank() || cantidadNum <= 0.0) {
-                    errorMensajeBottom = "El nombre y la cantidad son obligatorios y válidos."
+                if (nombre.isBlank() || cantidadInt == null || cantidadInt <= 0.0) {
+                    errorMensajeBottom = "El nombre y la cantidad son obligatorios."
                     return@TextButton
                 }
 
                 if (nombre.length > maxNombre) {
-                    errorMensajeNombre = "El nombre es demasiado largo (máx. $maxNombre)."
                     return@TextButton
                 }
 
                 if (!esFechaValida(fechaCaducidad)) {
-                    errorMensajeBottom = "La fecha debe tener un formato válido (dd/MM/yyyy)."
                     return@TextButton
                 }
 
-                val unidadFinal = if (unidad.isBlank()) "unidades" else unidad.trim()
+                var unidadesFinal = "";
+                if (unidades.isBlank() && cantidadInt > 1){
+                    unidadesFinal = "unidades"
+                } else if (unidades.isBlank() && cantidadInt == 1){
+                    unidadesFinal = "unidad"
+                } else {
+                    unidadesFinal = unidades.trim()
+                }
+
                 val fechaFinal = fechaCaducidad.trim()
 
-                errorMensajeBottom = ""
-                errorMensajeNombre = ""
 
-                onConfirm(nombre.trim(), cantidadNum.toInt(), unidadFinal, fechaFinal)
+                onConfirm(nombre.trim(), cantidadInt.toInt(), unidadesFinal, fechaFinal)
             }) {
                 Text("Crear")
             }
@@ -1227,7 +1250,9 @@ fun AgregarAListaCompraDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(
+                onClick = onConfirm
+            ) {
                 Text("Añadir")
             }
         },

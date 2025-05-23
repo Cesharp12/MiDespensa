@@ -85,25 +85,46 @@ open class InicioViewModel : ViewModel() {
     ) {
         val yourUid = uid ?: return onFailure("Usuario no autenticado")
         if (code.isBlank()) return onFailure("Introduce un código válido")
+
+        // 1) Buscamos la despensa por su código
         db.collection("despensas")
             .whereEqualTo("codigo", code.trim().uppercase())
             .get()
             .addOnSuccessListener { snap ->
                 if (snap.isEmpty) {
-                    onFailure("No existe ninguna despensa con ese código")
+                    // Código incorrecto
+                    onFailure("Código de despensa inválido")
                 } else {
-                    // Actualiza members con arrayUnion
                     val doc = snap.documents.first()
-                    db.collection("despensas").document(doc.id)
-                        .update("miembros", FieldValue.arrayUnion(yourUid))
-                        .addOnSuccessListener { onSuccess() }
-                        .addOnFailureListener { e -> onFailure(e.message ?: "Error uniendo") }
+                    val nombre = doc.getString("nombre") ?: "—"
+                    val miembros = doc.get("miembros") as? List<String> ?: emptyList()
+
+                    when {
+                        // Ya eres miembro
+                        miembros.contains(yourUid) -> {
+                            onFailure("Ya perteneces a la despensa '$nombre'")
+                        }
+                        // Límite de miembros alcanzado
+                        miembros.size >= 8 -> {
+                            onFailure("La despensa '$nombre' ha llegado al límite de miembros")
+                        }
+                        else -> {
+                            // Todo OK → añadimos tu UID
+                            db.collection("despensas").document(doc.id)
+                                .update("miembros", FieldValue.arrayUnion(yourUid))
+                                .addOnSuccessListener { onSuccess() }
+                                .addOnFailureListener { e ->
+                                    onFailure(e.message ?: "Error uniendo a la despensa")
+                                }
+                        }
+                    }
                 }
             }
             .addOnFailureListener { e ->
                 onFailure(e.message ?: "Error buscando despensa")
             }
     }
+
 
     open fun logout(onLogout: () -> Unit) {
         auth.signOut()

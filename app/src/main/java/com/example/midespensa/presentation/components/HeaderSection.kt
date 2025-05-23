@@ -14,13 +14,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.midespensa.ui.theme.GreenBack
 
+/**
+ * Sección de cabecera para cada página que muestra un título centrado sobre un fondo verde.
+ *
+ * Usa un Box para separar el contenido de los bordes
+ * y muestra el texto con estilo.
+ *
+ * @param title Cadena de texto que se mostrará como encabezado.
+ */
 @Composable
 fun HeaderSection(title: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(GreenBack)
-            .padding(40.dp, 60.dp, 40.dp, 30.dp),
+            .padding(start = 40.dp, top = 60.dp, end = 40.dp, bottom = 30.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -31,4 +39,3 @@ fun HeaderSection(title: String) {
         )
     }
 }
-

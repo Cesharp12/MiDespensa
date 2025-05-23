@@ -21,8 +21,6 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import com.example.midespensa.ui.theme.MiDespensaTheme
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import com.example.midespensa.notifications.AlarmHelper
-import com.example.midespensa.notifications.NotificationConfig
 import com.example.midespensa.notifications.NotificationWorker
 import com.google.firebase.auth.FirebaseAuth
 import android.provider.Settings

@@ -38,25 +38,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.sp
 import com.example.midespensa.data.model.Despensa
-import com.example.midespensa.notifications.NotificationTestHelper
 import com.example.midespensa.ui.theme.DarkGray
 import com.example.midespensa.ui.theme.GreenConfirm
 
-@Composable
-fun NotificacionTestButton() {
-    val context = LocalContext.current
-
-    Button(onClick = {
-        NotificationTestHelper.mostrarNotiTest(
-            context,
-            despensa = "Despensa Prueba",
-            producto = "Huevos",
-            razon = "están a punto de caducar"
-        )
-    }) {
-        Text("Testear Notificación")
-    }
-}
 
 @Composable
 fun InicioScreen(navController: NavController, viewModel: InicioViewModel = viewModel()) {
@@ -65,6 +49,7 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
     val focusManager = LocalFocusManager.current
 
     val despensas by viewModel.despensas.collectAsState()
+
     val errorMsg by viewModel.error.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
@@ -143,7 +128,6 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Spacer(Modifier.height(15.dp))
-//                    NotificacionTestButton()
                     Text(
                         "Unirse a despensa",
                         fontSize = 25.sp,
@@ -155,45 +139,34 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                     Spacer(Modifier.height(15.dp))
                     OutlinedTextField(
                         value = joinCode,
-                        onValueChange = { joinCode = it },
-                        placeholder = { Text("Código único") },
+                        onValueChange = { newValue ->
+                            // Sólo deja hasta 6 caracteres
+                            joinCode = newValue.take(6)
+                        },
+                        placeholder = { Text("Código único (6 dígitos)") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         modifier = Modifier.fillMaxWidth()
                     )
+
                     Spacer(Modifier.height(8.dp))
 
                     Button(
                         onClick = {
                             focusManager.clearFocus()
-
                             val code = joinCode.trim().uppercase()
-                            val despensaByCodigo = despensas.firstOrNull { it.codigo == code }
 
-                            when {
-                                despensas.size >= 8 -> {
-                                    limitDialogMessage = "No puedes unirte a más de 8 despensas"
+                            viewModel.joinDespensa(
+                                code,
+                                onSuccess = {
+                                    joinCode = ""
+                                    Toast.makeText(context, "¡Nueva despensa añadida!", Toast.LENGTH_SHORT).show()
+                                },
+                                onFailure = { msg ->
+                                    limitDialogMessage = msg
                                     showLimitDialog = true
                                 }
-                                despensas.any { it.codigo == code } -> {
-                                    if (despensaByCodigo != null) {
-                                        limitDialogMessage = "Ya perteneces a la despensa '${despensaByCodigo.nombre}'"
-                                    }
-                                    showLimitDialog = true
-                                }
-                                else -> {
-                                    viewModel.joinDespensa(
-                                        code,
-                                        onSuccess = {
-                                            joinCode = ""
-                                            Toast.makeText(context, "¡Nueva despensa añadida!", Toast.LENGTH_SHORT).show()
-                                        },
-                                        onFailure = { msg ->
-                                            Toast.makeText(context, "Error al unirse: $msg", Toast.LENGTH_SHORT).show()
-                                        }
-                                    )
-                                }
-                            }
+                            )
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = GreenConfirm),
                         modifier = Modifier.fillMaxWidth(),
@@ -201,6 +174,7 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                     ) {
                         Text("UNIRSE", color = Color.White)
                     }
+
 
                     errorMsg?.let {
                         Spacer(Modifier.height(12.dp))

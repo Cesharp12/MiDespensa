@@ -347,6 +347,7 @@ fun EditarProductoDialog(
     onConfirm: (nuevaCantidad: Int, nuevasUnidades: String, nuevosDetalles: String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var nombre by remember { mutableStateOf(producto.nombre ?: "") }
     var cantidad by remember { mutableStateOf(producto.cantidad.toString()) }
     var unidades by remember { mutableStateOf(producto.unidades ?: "") }
     var detalles by remember { mutableStateOf(producto.detalles ?: "") }
@@ -359,47 +360,55 @@ fun EditarProductoDialog(
         title = { Text("Editar producto") },
         text = {
             Column {
+
+                // Nombre
+                OutlinedTextField(
+                    value = nombre,
+                    onValueChange = { input ->
+                        nombre = input.take(30)
+                    },
+                    label = { Text("Nombre", color = Color.Gray) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(8.dp))
+
                 // CANTIDAD
                 OutlinedTextField(
                     value = cantidad,
                     onValueChange = {
-                        if (it.matches(Regex("^\\d{0,5}$"))) cantidad = it
+                        if (it.matches(Regex("^\\d{0,5}$")) && it.isNotBlank() && it.toInt() <= 7) cantidad = it
                     },
                     label = { Text("Cantidad", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     isError = errorCantidad.isNotEmpty()
                 )
-                if (errorCantidad.isNotEmpty()) {
-                    Text(errorCantidad, color = Color.Red, fontSize = 12.sp)
-                }
 
                 Spacer(Modifier.height(8.dp))
 
                 // UNIDADES (opcional)
                 OutlinedTextField(
                     value = unidades,
-                    onValueChange = {
-                        unidades = it
-                        errorUnidades = if (it.isNotBlank() && !it.matches(Regex("^[\\p{L}]{1,15}$"))) {
-                            "Solo letras (máx. 15)"
-                        } else ""
+                    onValueChange = { input ->
+                        if (input.isNotBlank() && !input.matches(Regex("^[\\p{L}]{1,15}$")) && input.length <= 7) {
+                            unidades = input.take(20)
+                        }
                     },
-                    label = { Text("Unidades", color = Color.Gray) },
+                    label = { Text("Unidades (opcional)", color = Color.Gray) },
+                    placeholder = { Text("ej: kg", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     isError = errorUnidades.isNotEmpty()
                 )
-                if (errorUnidades.isNotEmpty()) {
-                    Text(errorUnidades, color = Color.Red, fontSize = 12.sp)
-                }
 
                 Spacer(Modifier.height(8.dp))
 
                 // DETALLES (opcional)
                 OutlinedTextField(
                     value = detalles,
-                    onValueChange = { detalles = it },
+                    onValueChange = { detalles = it.take(50) },
                     label = { Text("Detalles (opcional)", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -413,9 +422,14 @@ fun EditarProductoDialog(
                     return@TextButton
                 }
 
-                val unidadesFinal = if (unidades.isBlank()) "unidades" else unidades.trim()
-
-                if (errorUnidades.isNotEmpty()) return@TextButton
+                var unidadesFinal = "";
+                if (unidades.isBlank() && cantidadInt > 1){
+                    unidadesFinal = "unidades"
+                } else if (unidades.isBlank() && cantidadInt == 1){
+                    unidadesFinal = "unidad"
+                } else {
+                    unidadesFinal = unidades.trim()
+                }
 
                 errorCantidad = ""
                 onConfirm(cantidadInt, unidadesFinal, detalles.trim())
@@ -448,37 +462,48 @@ fun AgregarProductoDialog(
         title = { Text("Nuevo producto") },
         text = {
             Column {
+                // NOMBRE
                 OutlinedTextField(
                     value = nombre,
-                    onValueChange = { nombre = it },
+                    onValueChange = { input ->
+                        nombre = input.take(30)
+                    },
                     label = { Text("Nombre", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
+
+                // CANTIDAD
                 OutlinedTextField(
                     value = cantidad,
-                    onValueChange = {
-                        if (it.matches(Regex("^\\d{0,10}$"))) cantidad = it
+                    onValueChange = { input ->
+                        if (input.matches(Regex("^\\d{0,10}$"))) cantidad = input.take(7)
                     },
                     label = { Text("Cantidad", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
+
+                // UNIDADES
                 OutlinedTextField(
                     value = unidades,
-                    onValueChange = {
-                        if (it.matches(Regex("^[\\p{L}]{0,15}$"))) unidades = it
+                    onValueChange = { input ->
+                        if (input.matches(Regex("^[\\p{L}]{0,15}$"))) unidades = input.take(20)
                     },
-                    label = { Text("Unidades", color = Color.Gray) },
+                    label = { Text("Unidades (opcional)", color = Color.Gray) },
+                    placeholder = { Text("ej: kg", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
+
+                // DETALLES
                 OutlinedTextField(
                     value = detalles,
-                    onValueChange = { detalles = it },
+                    onValueChange = { input ->
+                        detalles = input.take(50) },
                     label = { Text("Detalles (opcional)", color = Color.Gray) },
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -492,11 +517,18 @@ fun AgregarProductoDialog(
             TextButton(onClick = {
                 val cantidadInt = cantidad.toIntOrNull()
                 if (nombre.isBlank() || cantidadInt == null || cantidadInt <= 0) {
-                    errorMensaje = "El nombre y la cantidad son obligatorios y válidos."
+                    errorMensaje = "El nombre y la cantidad son obligatorios."
                     return@TextButton
                 }
 
-                val unidadesFinal = if (unidades.isBlank()) "unidades" else unidades.trim()
+                var unidadesFinal = "";
+                if (unidades.isBlank() && cantidadInt > 1){
+                    unidadesFinal = "unidades"
+                } else if (unidades.isBlank() && cantidadInt == 1){
+                    unidadesFinal = "unidad"
+                } else {
+                    unidadesFinal = unidades.trim()
+                }
 
                 errorMensaje = ""
                 onConfirm(nombre.trim(), cantidadInt, unidadesFinal, detalles.trim())

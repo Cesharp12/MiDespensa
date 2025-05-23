@@ -49,7 +49,6 @@ import androidx.work.WorkManager
 import com.example.midespensa.ui.theme.DarkGray
 import com.example.midespensa.ui.theme.GreenConfirm
 
-import com.example.midespensa.notifications.NotificationConfig
 import com.example.midespensa.notifications.NotificationWorker
 import com.example.midespensa.notifications.WorkScheduler
 import java.util.concurrent.TimeUnit
@@ -277,114 +276,47 @@ fun CuentaScreen(navController: NavController, viewModel: CuentaViewModel = view
             )
             {
                 Text(
-                    if(minute >= 0 && minute < 10) "Hora de notificación: $hour:0$minute" else "Hora de notificación: $hour:$minute",
+                    if(minute in 0..9) "Hora de notificación: $hour:0$minute" else "Hora de notificación: $hour:$minute",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                     color = Color.Black
                 )
             }
 
-//            Row(
-//                modifier = Modifier
-//                    .fillMaxWidth(),
-//                horizontalArrangement = Arrangement.Center
-//            )
-//            {
-//                // Botón para abrir TimePicker
-//                Button(onClick = {
-//                    TimePickerDialog(context, { timePicker, horaSelected, _ ->
-//                        //Establecer color de fondo
-//                        val color = android.graphics.Color.parseColor("#E6FFE6")
-//                        timePicker.setBackgroundColor(color)
-//
-//                        hora = horaSelected
-//                        settings.edit()
-//                            .putInt("hora_notif", hora)
-//                            .apply()
-//
-//                        NotificationConfig.scheduleDailyWorkerAtHour(context, horaSelected)
-//
-//                        Toast.makeText(context, "Notificaciones cada día a las $horaSelected:00", Toast.LENGTH_SHORT).show()
-//                    }, hora, 0, true).show()
-//                },
-//                    colors = ButtonDefaults.buttonColors(containerColor = GreenConfirm),
-//                    modifier = Modifier
-//                        .fillMaxWidth(),
-//                    shape = MaterialTheme.shapes.small
-//                    ) {
-//                    Text("Cambiar hora de notificación".format(hora, "00"))
-//                }
-//            }
-
-//            Button(onClick = {
-//                tempHour = hora
-//                showHourPicker = true
-//            },
-//                colors = ButtonDefaults.buttonColors(containerColor = GreenConfirm),
-//                modifier = Modifier.fillMaxWidth(),
-//                shape = MaterialTheme.shapes.small
-//            ) {
-//                Text("Cambiar hora de notificación: %02d:00".format(hora))
-//            }
-//
-//            if (showHourPicker) {
-//                AlertDialog(
-//                    onDismissRequest = { showHourPicker = false },
-//                    title = { Text("Selecciona la hora") },
-//                    text = {
-//                        AndroidView(
-//                            factory = { ctx ->
-//                                NumberPicker(ctx).apply {
-//                                    minValue = 0
-//                                    maxValue = 23
-//                                    value = tempHour
-//                                    wrapSelectorWheel = true
-//                                    setOnValueChangedListener { _, _, newVal ->
-//                                        tempHour = newVal
-//                                    }
-//                                }
-//                            },
-//                            modifier = Modifier
-//                                .fillMaxWidth()
-//                                .height(150.dp)
-//                                .wrapContentHeight(align = Alignment.CenterVertically)
-//                        )
-//                    },
-//                    confirmButton = {
-//                        TextButton(onClick = {
-//                            hora = tempHour
-//                            settings.edit().putInt("notif_hour", tempHour).apply()
-//                            NotificationConfig.scheduleDailyWorkerAtHour(context, hora)
-//                            Toast.makeText(
-//                                context,
-//                                "Notificaciones cada día a las %02d:00".format(hora),
-//                                Toast.LENGTH_SHORT
-//                            ).show()
-//                            showHourPicker = false
-//                        }) {
-//                            Text("OK")
-//                        }
-//                    },
-//                    dismissButton = {
-//                        TextButton(onClick = { showHourPicker = false }) {
-//                            Text("Cancelar")
-//                        }
-//                    }
-//                )
-//            }
-
             Column(
                 modifier = Modifier.fillMaxSize().padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
 
-                Button(onClick = { showPicker = true },
+                Button(
+                    onClick = { showPicker = true },
                     colors = ButtonDefaults.buttonColors(containerColor = GreenConfirm),
                     modifier = Modifier
                         .fillMaxWidth(),
                     shape = MaterialTheme.shapes.small
-                    ) {
+                    )
+                {
                     Text("Cambiar hora de notificación")
+                }
+
+                Spacer(Modifier.height(25.dp))
+
+                Button(
+                    onClick = {
+                        viewModel.logout {
+                            navController.navigate("login") {
+                                popUpTo("cuenta") { inclusive = true }
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedCancel),
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Icon(Icons.Default.Logout, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Cerrar sesión", color = Color.White, fontSize = 15.sp)
                 }
 
                 if (showPicker) {
@@ -415,37 +347,8 @@ fun CuentaScreen(navController: NavController, viewModel: CuentaViewModel = view
                     ).show()
                 }
             }
-            //TEST
-            Button(onClick = {
-                val req = OneTimeWorkRequestBuilder<NotificationWorker>()
-                    .setInitialDelay(10, TimeUnit.SECONDS)
-                    .build()
-                WorkManager.getInstance(context).enqueue(req)
-                Log.d("DebugTest", "One-time worker enqueued")
-                Toast.makeText(context, "Worker de prueba encolado", Toast.LENGTH_SHORT).show()
-            }) {
-                Text("Probar notificación ahora")
-            }
 
-            Spacer(Modifier.height(20.dp))
 
-            Button(
-                onClick = {
-                    viewModel.logout {
-                        navController.navigate("login") {
-                            popUpTo("cuenta") { inclusive = true }
-                        }
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = RedCancel),
-                modifier = Modifier
-                    .fillMaxWidth(),
-                shape = MaterialTheme.shapes.small,
-            ) {
-                Icon(Icons.Default.Logout, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Cerrar sesión", color = Color.White, fontSize = 15.sp)
-            }
         }
     }
 }
