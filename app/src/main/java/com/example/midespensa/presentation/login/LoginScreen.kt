@@ -47,7 +47,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
  * Pantalla de inicio de sesión que muestra campos de correo y contraseña,
  * gestiona el foco, validaciones y navega al resto de la app.
  *
- * Emplea FirebaseAuth para el proceso de autenticación y muestra Toasts según el resultado.
+ * Usa FirebaseAuth para el proceso de autenticación y muestra Toasts según el resultado.
  */
 @Composable
 fun LoginScreen(

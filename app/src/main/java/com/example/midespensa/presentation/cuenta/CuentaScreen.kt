@@ -2,8 +2,6 @@ package com.example.midespensa.presentation.cuenta
 
 import android.app.TimePickerDialog
 import android.content.Context
-import android.util.Log
-import android.widget.NumberPicker
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -43,15 +41,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.example.midespensa.ui.theme.DarkGray
 import com.example.midespensa.ui.theme.GreenConfirm
-
-import com.example.midespensa.notifications.NotificationWorker
 import com.example.midespensa.notifications.WorkScheduler
-import java.util.concurrent.TimeUnit
 
 
 @Composable
@@ -347,8 +339,6 @@ fun CuentaScreen(navController: NavController, viewModel: CuentaViewModel = view
                     ).show()
                 }
             }
-
-
         }
     }
 }

@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.midespensa.BuildConfig
 import com.example.midespensa.data.model.Receta
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -63,8 +64,9 @@ class RecetaViewModel : ViewModel() {
     val showFavorites: State<Boolean> = _showFavorites
 
     // Edamam
-    private val appId = "b0e21ed4"
-    private val appKey = "4d358f163ca0241eecfe44afcd28796a"
+    private val appId = BuildConfig.EDAMAM_APP_ID
+    private val appKey = BuildConfig.EDAMAM_APP_KEY
+
 
     // Traductores ML Kit
     private val enToEsTranslator: Translator by lazy {

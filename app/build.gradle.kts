@@ -20,6 +20,10 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        buildConfigField("String", "EDAMAM_APP_ID", "\"${project.properties["EDAMAM_APP_ID"]}\"")
+        buildConfigField("String", "EDAMAM_APP_KEY", "\"${project.properties["EDAMAM_APP_KEY"]}\"")
+
     }
 
     buildTypes {

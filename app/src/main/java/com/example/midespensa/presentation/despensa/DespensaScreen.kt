@@ -749,7 +749,6 @@ fun EditarProductoDialog(
     var errorMensaje by remember { mutableStateOf("") }
 
     // Calendar
-//    val calendar = remember { Calendar.getInstance() }
     val calendar = remember {
         Calendar.getInstance().apply {
             if (producto.caducidad.isNotBlank()) {

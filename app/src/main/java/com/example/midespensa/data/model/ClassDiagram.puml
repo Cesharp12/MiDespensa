@@ -1,0 +1,37 @@
+@startuml
+class Despensa {
+  - codigo: String
+  - nombre: String
+  - descripcion: String
+  - color: String
+  - miembros: List<String>
+}
+
+class Producto {
+  - nombre: String
+  - cantidad: Int
+  - unidad: String
+  - caducidad: String
+  - estado: String
+}
+
+class ProductoCompra {
+  - nombre: String
+  - cantidad: Int
+  - unidades: String
+  - detalles: String
+}
+
+class Receta {
+  - label: String
+  - url: String
+  - image: String
+  - ingredientLines: List<String>
+  - yield: Int
+}
+
+Despensa --> "0..*" Producto
+Despensa --> "0..*" ProductoCompra
+Usuario --> "0..*" Despensa
+Usuario --> "0..*" Receta
+@enduml

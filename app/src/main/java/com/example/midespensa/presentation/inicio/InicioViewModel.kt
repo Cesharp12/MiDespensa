@@ -51,7 +51,6 @@ open class InicioViewModel : ViewModel() {
     }
 
     /** Crea una nueva despensa con nombre y código aleatorio */
-    // TODO: Implementar mas campos
     open fun createDespensa(
         nombre: String,
         onSuccess: () -> Unit = {},
