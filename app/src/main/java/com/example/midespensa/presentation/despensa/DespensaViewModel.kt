@@ -3,7 +3,6 @@ package com.example.midespensa.presentation.despensa
 import androidx.lifecycle.ViewModel
 import com.example.midespensa.data.model.Producto
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,8 +15,6 @@ import java.util.Locale
 class DespensaViewModel : ViewModel() {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
-
-    val user: FirebaseUser? = auth.currentUser
 
     private val _nombre = MutableStateFlow("")
     val nombre: StateFlow<String> = _nombre.asStateFlow()
@@ -43,7 +40,13 @@ class DespensaViewModel : ViewModel() {
 
     private var despensaId: String? = null
 
-    fun cargarDespensa(codigo: String) {
+    /**
+     * Carga la información de una despensa por su código y actualiza los estados correspondientes.
+     * También carga los miembros y productos asociados a la despensa.
+     *
+     * @param codigo Código identificador de la despensa.
+     */
+    fun loadDespensa(codigo: String) {
         db.collection("despensas")
             .whereEqualTo("codigo", codigo)
             .get()
@@ -68,12 +71,16 @@ class DespensaViewModel : ViewModel() {
                             }
                     }
 
-                    cargarProductos()
+                    fetchProductos()
                 }
             }
     }
 
-    private fun cargarProductos() {
+    /**
+     * Obtiene todos los productos de la despensa actual y actualiza el estado con la lista.
+     * No retorna valor, pero actualiza `_productos` o `_error`.
+     */
+    private fun fetchProductos() {
         val despensa = despensaId ?: return
         db.collection("despensas").document(despensa).collection("productos")
             .get()
@@ -84,7 +91,7 @@ class DespensaViewModel : ViewModel() {
                         nombre = doc.getString("nombre") ?: "",
                         cantidad = (doc.getLong("cantidad") ?: 1L).toInt(),
                         unidad = doc.getString("unidad") ?: "unidad",
-                        estado = calcularEstadoDesdeFecha(doc.getString("caducidad") ?: ""),
+                        estado = calculateEstadoProducto(doc.getString("caducidad") ?: ""),
                         caducidad = doc.getString("caducidad") ?: ""
                     )
                 }
@@ -95,10 +102,18 @@ class DespensaViewModel : ViewModel() {
             }
     }
 
-    fun crearProducto(nombre: String, cantidad: Int, unidad: String, caducidad: String) {
+    /**
+     * Crea un nuevo producto en la despensa actual y actualiza la lista al terminar.
+     *
+     * @param nombre Nombre del producto.
+     * @param cantidad Cantidad inicial.
+     * @param unidad Unidad de medida.
+     * @param caducidad Fecha de caducidad en formato dd/MM/yy.
+     */
+    fun createProducto(nombre: String, cantidad: Int, unidad: String, caducidad: String) {
         val despensa = despensaId ?: return
 
-        val estado = calcularEstadoDesdeFecha(caducidad)
+        val estado = calculateEstadoProducto(caducidad)
 
         val nuevoProducto = hashMapOf(
             "nombre" to nombre,
@@ -111,15 +126,21 @@ class DespensaViewModel : ViewModel() {
         db.collection("despensas").document(despensa).collection("productos")
             .add(nuevoProducto)
             .addOnSuccessListener {
-                cargarProductos()
+                fetchProductos()
             }
             .addOnFailureListener {
                 _error.value = "Error al crear producto"
             }
     }
 
-    // Nuevo método para consumir varias unidades
-    fun consumirUnidadProducto(producto: Producto, cantidadConsumir: Int) {
+    /**
+     * Disminuye la cantidad de un producto en la despensa actual.
+     * Solo actualiza si la nueva cantidad es mayor o igual a 0.
+     *
+     * @param producto Producto al que se le descontará cantidad.
+     * @param cantidadConsumir Cantidad a restar.
+     */
+    fun decreaseCantidadProducto(producto: Producto, cantidadConsumir: Int) {
         val despensa = despensaId ?: return
         val nuevaCantidad = producto.cantidad - cantidadConsumir
 
@@ -127,24 +148,38 @@ class DespensaViewModel : ViewModel() {
             db.collection("despensas").document(despensa)
                 .collection("productos").document(producto.id)
                 .update("cantidad", nuevaCantidad)
-                .addOnSuccessListener { cargarProductos() }
+                .addOnSuccessListener { fetchProductos() }
                 .addOnFailureListener { _error.value = "Error al consumir unidades" }
         }
     }
 
-    // Nuevo método para reponer unidades
-    fun reponerUnidadProducto(producto: Producto, cantidadReponer: Int) {
+    /**
+     * Aumenta la cantidad de un producto en la despensa actual.
+     *
+     * @param producto Producto al que se le sumará cantidad.
+     * @param cantidadReponer Cantidad a añadir.
+     */
+    fun increaseCantidadProducto(producto: Producto, cantidadReponer: Int) {
         val despensa = despensaId ?: return
         val nuevaCantidad = producto.cantidad + cantidadReponer
 
         db.collection("despensas").document(despensa)
             .collection("productos").document(producto.id)
             .update("cantidad", nuevaCantidad)
-            .addOnSuccessListener { cargarProductos() }
+            .addOnSuccessListener { fetchProductos() }
             .addOnFailureListener { _error.value = "Error al reponer unidades" }
     }
 
-    fun actualizarProducto(
+    /**
+     * Actualiza los campos de un producto en la despensa actual.
+     *
+     * @param producto Producto a modificar.
+     * @param nombre Nuevo nombre.
+     * @param cantidad Nueva cantidad.
+     * @param unidad Nueva unidad.
+     * @param caducidad Nueva fecha de caducidad.
+     */
+    fun updateProducto(
         producto: Producto,
         nombre: String,
         cantidad: Int,
@@ -153,7 +188,7 @@ class DespensaViewModel : ViewModel() {
     ) {
         val despensa = despensaId ?: return
 
-        val estado = calcularEstadoDesdeFecha(caducidad)
+        val estado = calculateEstadoProducto(caducidad)
 
         db.collection("despensas").document(despensa)
             .collection("productos").document(producto.id)
@@ -167,23 +202,36 @@ class DespensaViewModel : ViewModel() {
                 )
             )
             .addOnSuccessListener {
-                cargarProductos()
+                fetchProductos()
             }
             .addOnFailureListener {
                 _error.value = "Error al actualizar producto"
             }
     }
 
-    fun eliminarProducto(producto: Producto) {
+    /**
+     * Elimina un producto de la despensa actual.
+     *
+     * @param producto Producto a eliminar.
+     */
+    fun deleteProduct(producto: Producto) {
         val despensa = despensaId ?: return
         db.collection("despensas").document(despensa)
             .collection("productos").document(producto.id)
             .delete()
-            .addOnSuccessListener { cargarProductos() }
+            .addOnSuccessListener { fetchProductos() }
             .addOnFailureListener { _error.value = "Error al eliminar producto" }
     }
 
-    fun agregarProductoListaCompra(
+    /**
+     * Añade un producto a la lista de la compra de la despensa actual.
+     *
+     * @param producto Producto base.
+     * @param cantidadAReponer Cantidad que se desea reponer.
+     * @param unidades Unidades asociadas.
+     * @param detalles Información adicional.
+     */
+    fun addProductToListaCompra(
         producto: Producto,
         cantidadAReponer: Int?,
         unidades: String,
@@ -202,8 +250,12 @@ class DespensaViewModel : ViewModel() {
             .add(nuevo)
     }
 
-
-    fun abandonarDespensa(codigo: String) {
+    /**
+     * Permite salir de una despensa, eliminando el UID del usuario de su lista de miembros.
+     *
+     * @param codigo Código identificador de la despensa.
+     */
+    fun leaveDespensa(codigo: String) {
         val uid = auth.currentUser?.uid ?: return
         db.collection("despensas")
             .whereEqualTo("codigo", codigo)
@@ -216,7 +268,13 @@ class DespensaViewModel : ViewModel() {
             }
     }
 
-    private fun calcularEstadoDesdeFecha(fechaCaducidad: String): String {
+    /**
+     * Calcula el estado de un producto (caducado, consumir pronto, buen estado) a partir de la fecha de caducidad.
+     *
+     * @param fechaCaducidad Fecha en formato dd/MM/yy.
+     * @return Estado del producto como cadena.
+     */
+    private fun calculateEstadoProducto(fechaCaducidad: String): String {
         return try {
             val formato = SimpleDateFormat("dd/MM/yy", Locale.getDefault())
             val fecha = formato.parse(fechaCaducidad)
@@ -234,8 +292,13 @@ class DespensaViewModel : ViewModel() {
         }
     }
 
-
-    fun actualizarDescripcion(nuevaDescripcion: String, onResult: (Boolean) -> Unit) {
+    /**
+     * Actualiza la descripción de la despensa actual en Firestore.
+     *
+     * @param nuevaDescripcion Nueva descripción a guardar.
+     * @param onResult Callback que indica si la operación fue exitosa.
+     */
+    fun updateDespensaDescription(nuevaDescripcion: String, onResult: (Boolean) -> Unit) {
         db.collection("despensas")
             .whereEqualTo("codigo", _codigoDespensa.value)
             .get()
@@ -255,7 +318,12 @@ class DespensaViewModel : ViewModel() {
             }
     }
 
-    fun actualizarColorDespensa(colorHex: String) {
+    /**
+     * Cambia el color representativo de la despensa actual.
+     *
+     * @param colorHex Código hexadecimal del nuevo color.
+     */
+    fun updateDespensaColor(colorHex: String) {
         val codigo = _codigoDespensa.value
         if (codigo.isBlank()) return
 

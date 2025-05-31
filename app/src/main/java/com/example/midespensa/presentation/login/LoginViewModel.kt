@@ -57,7 +57,7 @@ class LoginViewModel : ViewModel() {
         passwordVisible = !passwordVisible
     }
 
-    fun limpiarCampos() {
+    fun cleanFields() {
         email = ""
         password = ""
     }
@@ -76,13 +76,11 @@ class LoginViewModel : ViewModel() {
         onSuccess: () -> Unit,
         onFailure: (String) -> Unit
     ) {
-        // No permitir campos vacíos
         if (email.isBlank() || password.isBlank()) {
             errorMessage = "Por favor, completa todos los campos."
             return
         }
 
-        // Validaciones de formato
         if (!validateEmail() || !validatePassword()) {
             errorMessage = "Revisa los campos antes de continuar."
             return

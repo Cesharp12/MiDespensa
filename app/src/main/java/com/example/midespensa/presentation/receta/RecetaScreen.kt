@@ -155,13 +155,13 @@ fun RecetaScreen(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(
                         onSearch = {
-                            if (searchQuery.isNotBlank()) viewModel.buscarRecetas(searchQuery)
+                            if (searchQuery.isNotBlank()) viewModel.searchRecetas(searchQuery)
                             focusManager.clearFocus()
                         }
                     ),
                     trailingIcon = {
                         IconButton(onClick = {
-                            if (searchQuery.isNotBlank() && !showFavs) viewModel.buscarRecetas(searchQuery)
+                            if (searchQuery.isNotBlank() && !showFavs) viewModel.searchRecetas(searchQuery)
                         }) {
                             Icon(Icons.Default.Search, contentDescription = "Buscar")
                         }
@@ -217,7 +217,7 @@ fun RecetaScreen(
                                                 style = MaterialTheme.typography.titleMedium,
                                                 modifier = Modifier.weight(1f)
                                             )
-                                            IconButton(onClick = { viewModel.toggleFavorite(receta) }) {
+                                            IconButton(onClick = { viewModel.toggleFavorito(receta) }) {
                                                 val isFav = favs.any { it.url == receta.url }
                                                 Icon(
                                                     imageVector = if (isFav) Icons.Default.Star else Icons.Default.StarBorder,

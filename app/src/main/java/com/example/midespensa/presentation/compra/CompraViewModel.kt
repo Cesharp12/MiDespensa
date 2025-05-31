@@ -27,7 +27,13 @@ class CompraViewModel : ViewModel() {
         onLogout()
     }
 
-    fun cargarDespensasUsuario() {
+    /**
+     * Recupera todas las despensas a las que pertenece el usuario actual,
+     * así como sus productos de compra, y actualiza los estados correspondientes.
+     *
+     * No devuelve nada. Actualiza los StateFlow internos con los datos obtenidos.
+     */
+    fun fetchDespensas() {
         val uid = user?.uid ?: return
 
         db.collection("despensas")
@@ -69,7 +75,16 @@ class CompraViewModel : ViewModel() {
             }
     }
 
-    fun agregarProducto(
+    /**
+     * Añade un nuevo producto a la lista de compra de una despensa específica.
+     *
+     * @param codigoDespensa Código identificador de la despensa.
+     * @param nombre Nombre del producto.
+     * @param cantidad Cantidad del producto.
+     * @param unidades Unidades de medida del producto.
+     * @param detalles Información adicional opcional sobre el producto.
+     */
+    fun addProducto(
         codigoDespensa: String,
         nombre: String,
         cantidad: Int,
@@ -96,7 +111,16 @@ class CompraViewModel : ViewModel() {
             }
     }
 
-    fun editarProducto(despensaCodigo: String, productoId: String, nuevaCantidad: Int, nuevasUnidades: String, nuevosDetalles: String) {
+    /**
+     * Edita los datos de un producto ya existente en una lista de compra.
+     *
+     * @param despensaCodigo Código de la despensa a la que pertenece el producto.
+     * @param productoId ID único del producto a editar.
+     * @param nuevaCantidad Nueva cantidad del producto.
+     * @param nuevasUnidades Nuevas unidades de medida.
+     * @param nuevosDetalles Nuevos detalles u observaciones del producto.
+     */
+    fun editProducto(despensaCodigo: String, productoId: String, nuevaCantidad: Int, nuevasUnidades: String, nuevosDetalles: String) {
         db.collection("despensas")
             .whereEqualTo("codigo", despensaCodigo)
             .get()
@@ -117,8 +141,13 @@ class CompraViewModel : ViewModel() {
             }
     }
 
-
-    fun eliminarProducto(codigoDespensa: String, productoId: String) {
+    /**
+     * Elimina un producto específico de la lista de compra de una despensa.
+     *
+     * @param codigoDespensa Código de la despensa.
+     * @param productoId ID del producto que se desea eliminar.
+     */
+    fun deleteProducto(codigoDespensa: String, productoId: String) {
         db.collection("despensas")
             .whereEqualTo("codigo", codigoDespensa)
             .get()
@@ -133,7 +162,13 @@ class CompraViewModel : ViewModel() {
             }
     }
 
-    fun vaciarListaDespensa(codigoDespensa: String) {
+    /**
+     * Vacía por completo la lista de productos de compra de una despensa,
+     * eliminando todos los documentos de la subcolección correspondiente.
+     *
+     * @param codigoDespensa Código de la despensa cuya lista se desea vaciar.
+     */
+    fun emptyListaCompra(codigoDespensa: String) {
         db.collection("despensas")
             .whereEqualTo("codigo", codigoDespensa)
             .get()

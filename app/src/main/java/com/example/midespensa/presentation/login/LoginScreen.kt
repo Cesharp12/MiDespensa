@@ -56,7 +56,7 @@ fun LoginScreen(
 ) {
     // Al entrar, reiniciar los campos del ViewModel
     LaunchedEffect(Unit) {
-        viewModel.limpiarCampos()
+        viewModel.cleanFields()
     }
 
     val context = LocalContext.current

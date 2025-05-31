@@ -116,13 +116,13 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
             delay(17)
         }
 
-        // Ahora que la barra terminó, descartamos el snackbar
+        // Eliminar alerta al completarse la barra
         snackbarHostState.currentSnackbarData?.dismiss()
     }
 
     // Evento para cargar los productos al entrar a la página
     LaunchedEffect(key1 = codigoDespensa) {
-        viewModel.cargarDespensa(codigoDespensa)
+        viewModel.loadDespensa(codigoDespensa)
     }
 
     Scaffold(
@@ -187,7 +187,6 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
                 .pointerInput(Unit) { detectTapGestures(onTap = { focusManager.clearFocus() }) }
         ) {
             DespensaHeader(
-                nombre = nombreDespensa,
                 codigo = codigoDespensa,
                 descripcion = descripcionDespensa,
                 colorHex = colorDespensa,
@@ -248,9 +247,9 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        EstadoChip("Buen estado", estadoBueno)
-                        EstadoChip("Consumir pronto", estadoDeterioro)
-                        EstadoChip("Caducado", estadoCaducado)
+                        EstadoProductoChip("Buen estado", estadoBueno)
+                        EstadoProductoChip("Consumir pronto", estadoDeterioro)
+                        EstadoProductoChip("Caducado", estadoCaducado)
                     }
                     Spacer(Modifier.height(12.dp))
 
@@ -264,8 +263,8 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
                             productoAEliminar = it
                             showDeleteDialog = true
                         },
-                        onConsumirUnidad = { prod -> viewModel.consumirUnidadProducto(prod, 1) },
-                        onReponerUnidad = { prod -> viewModel.reponerUnidadProducto(prod, 1) },
+                        onConsumirUnidad = { prod -> viewModel.decreaseCantidadProducto(prod, 1) },
+                        onReponerUnidad = { prod -> viewModel.increaseCantidadProducto(prod, 1) },
                         onEditClick = { prod ->
                             selectedProducto = prod
                             showEditarDialog = true
@@ -284,10 +283,10 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
 
     // EDITAR PRODUCTO
     if (showEditarDialog && selectedProducto != null) {
-        EditarProductoDialog(
+        EditProductoDialog(
             producto = selectedProducto!!,
             onConfirmEdit = { nombre, cantidad, unidad, caducidad ->
-                viewModel.actualizarProducto(selectedProducto!!, nombre, cantidad, unidad, caducidad)
+                viewModel.updateProducto(selectedProducto!!, nombre, cantidad, unidad, caducidad)
                 showEditarDialog = false
             },
             onDismiss = { showEditarDialog = false }
@@ -296,10 +295,10 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
 
     // CREAR PRODUCTO
     if (showCreateDialog) {
-        CrearProductoDialog(
+        CreateProductoDialog(
             onDismiss = { showCreateDialog = false },
             onConfirm = { nombre, cantidad, unidad, fechaCaducidad ->
-                viewModel.crearProducto(nombre, cantidad, unidad, fechaCaducidad)
+                viewModel.createProducto(nombre, cantidad, unidad, fechaCaducidad)
                 showCreateDialog = false
             }
         )
@@ -310,7 +309,7 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
         DeleteProductoDialog(
             producto = productoAEliminar!!,
             onConfirmDelete = {
-                viewModel.eliminarProducto(productoAEliminar!!)
+                viewModel.deleteProduct(productoAEliminar!!)
                 showDeleteDialog = false
             },
             onDismiss = { showDeleteDialog = false }
@@ -318,11 +317,11 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
     }
     // ABANDONAR DESPENSA
     if (showLeaveDialog) {
-        AbandonarDespensaDialog(
-            despensaNombre = nombreDespensa,
+        LeaveDespensaDialog(
+            despensaName = nombreDespensa,
             onConfirm = {
                 showLeaveDialog = false
-                viewModel.abandonarDespensa(codigoDespensa)
+                viewModel.leaveDespensa(codigoDespensa)
                 navController.popBackStack()
             },
             onDismiss = {
@@ -339,7 +338,7 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
         var errorCantidad by remember { mutableStateOf("") }
         var errorUnidades by remember { mutableStateOf("") }
 
-        AgregarAListaCompraDialog(
+        AddProductoToListaCompraDialog(
             producto = productoAComprar!!,
             cantidad = cantidad,
             unidades = unidades,
@@ -365,15 +364,15 @@ fun DespensaScreen(navController: NavController, viewModel: DespensaViewModel = 
                     errorUnidades = ""
                 }
 
-                if (!valid) return@AgregarAListaCompraDialog
+                if (!valid) return@AddProductoToListaCompraDialog
 
                 val unidadesFinal = if (unidades.isBlank()) "unidades" else unidades.trim()
 
-                viewModel.agregarProductoListaCompra(
+                viewModel.addProductToListaCompra(
                     producto = productoAComprar!!,
                     cantidadAReponer = cantidadFinal,
                     unidades = unidadesFinal,
-                    detalles = detalles.trim()
+                    detalles = detalles.take(50).trim()
                 )
 
                 Toast.makeText(context, "Producto agregado a la lista", Toast.LENGTH_SHORT).show()
@@ -392,8 +391,7 @@ fun ProductoItem(
     onConsumirUnidad: (Producto) -> Unit,
     onReponerUnidad: (Producto) -> Unit,
     onEditClick: (Producto) -> Unit,
-    onAgregarListaCompra: (Producto) -> Unit,
-    onDeleteProducto: (Producto) -> Unit
+    onAgregarListaCompra: (Producto) -> Unit
 ) {
     val colorFondo = when (producto.estado) {
         "Buen estado" -> estadoBueno
@@ -414,10 +412,10 @@ fun ProductoItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Texto
+
             Column(
                 modifier = Modifier
-                    .weight(1f), // Le da espacio flexible
+                    .weight(1f),
                 horizontalAlignment = Alignment.Start
             ) {
                 Text(
@@ -487,7 +485,6 @@ fun ProductoItem(
 @Composable
 fun DespensaHeader(
     viewModel: DespensaViewModel = viewModel(),
-    nombre: String,
     codigo: String,
     descripcion: String,
     colorHex: String,
@@ -550,7 +547,7 @@ fun DespensaHeader(
                         Button(
                             shape = MaterialTheme.shapes.medium,
                             onClick = {
-                                viewModel.actualizarDescripcion(nuevaDescripcion) { success ->
+                                viewModel.updateDespensaDescription(nuevaDescripcion) { success ->
                                     if (success) editando = false ; Toast.makeText(context, "Descripción actualizada", Toast.LENGTH_SHORT).show()
                                 }
                             },
@@ -590,10 +587,9 @@ fun DespensaHeader(
                 }
                 Spacer(Modifier.height(10.dp))
                 ColorPickerSection(
-                    // Error en colorDespensa
                     currentColorHex = colorHex,
                     onColorSelected = { nuevoColor ->
-                        viewModel.actualizarColorDespensa(nuevoColor)
+                        viewModel.updateDespensaColor(nuevoColor)
                     }
                 )
 
@@ -681,7 +677,7 @@ fun ProductoItemSwipeable(
                     onDragEnd = {
                         coroutineScope.launch {
                             if (offsetX.value > swipeThresholdPx) {
-                                onDelete(producto) // Llama al padre, no abras diálogo aquí
+                                onDelete(producto)
                                 offsetX.snapTo(0f) // Resetea swipe
                             } else {
                                 offsetX.animateTo(0f)
@@ -726,7 +722,6 @@ fun ProductoItemSwipeable(
                 onConsumirUnidad = onConsumirUnidad,
                 onReponerUnidad = onReponerUnidad,
                 onEditClick = onEditClick,
-                onDeleteProducto = {}, // El swipe se encarga
                 onAgregarListaCompra = onAgregarListaCompra
             )
         }
@@ -734,7 +729,7 @@ fun ProductoItemSwipeable(
 }
 
 @Composable
-fun EditarProductoDialog(
+fun EditProductoDialog(
     producto: Producto,
     onConfirmEdit: (String, Int, String, String) -> Unit,
     onDismiss: () -> Unit
@@ -746,7 +741,7 @@ fun EditarProductoDialog(
 
     val sdf = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
 
-    var errorMensaje by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf("") }
 
     // Calendar
     val calendar = remember {
@@ -763,7 +758,7 @@ fun EditarProductoDialog(
         pickerHeightDp.toPx().toInt()
     }
 
-    fun esFechaValida(fecha: String): Boolean {
+    fun isDateValid(fecha: String): Boolean {
         return try {
             if (fecha.isBlank()) return true
             val formato = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
@@ -902,37 +897,37 @@ fun EditarProductoDialog(
                     )
                 }
 
-                if (errorMensaje.isNotBlank()) {
+                if (errorMessage.isNotBlank()) {
                     Spacer(Modifier.height(6.dp))
-                    Text(errorMensaje, color = Color.Red, fontSize = 12.sp)
+                    Text(errorMessage, color = Color.Red, fontSize = 12.sp)
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = {
-                val cantidadInt = cantidadInput.toIntOrNull()
-                if (nombre.isBlank() || cantidadInt == null || cantidadInt <= 0) {
-                    errorMensaje = "El nombre y la cantidad son obligatorios."
+                val quantityInt = cantidadInput.toIntOrNull()
+                if (nombre.isBlank() || quantityInt == null || quantityInt <= 0) {
+                    errorMessage = "El nombre y la cantidad son obligatorios."
                     return@TextButton
                 }
 
-                if (!esFechaValida(fechaCaducidad)) {
+                if (!isDateValid(fechaCaducidad)) {
                     return@TextButton
                 }
 
-                var unidadesFinal = "";
-                if (unidades.isBlank() &&  cantidadInt > 1){
-                    unidadesFinal = "unidades"
-                } else if (unidades.isBlank() && cantidadInt == 1){
-                    unidadesFinal = "unidad"
+                var unitsFinal = "";
+                if (unidades.isBlank() &&  quantityInt > 1){
+                    unitsFinal = "unidades"
+                } else if (unidades.isBlank() && quantityInt == 1){
+                    unitsFinal = "unidad"
                 } else {
-                    unidadesFinal = unidades.trim()
+                    unitsFinal = unidades.trim()
                 }
 
-                val fechaFinal = fechaCaducidad.trim()
+                val finalDate = fechaCaducidad.trim()
 
-                errorMensaje = ""
-                onConfirmEdit(nombre.trim(), cantidadInt, unidadesFinal, fechaFinal)
+                errorMessage = ""
+                onConfirmEdit(nombre.trim(), quantityInt, unitsFinal, finalDate)
             }) {
                 Text("Guardar cambios")
             }
@@ -946,7 +941,7 @@ fun EditarProductoDialog(
 }
 
 @Composable
-fun CrearProductoDialog(
+fun CreateProductoDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, Int, String, String) -> Unit
 ) {
@@ -955,14 +950,12 @@ fun CrearProductoDialog(
     var unidades by remember { mutableStateOf("") }
     var fechaCaducidad by remember { mutableStateOf("") }
 
-    var errorMensajeBottom by remember { mutableStateOf("") }
-    var errorMensajeNombre by remember { mutableStateOf("") }
+    var errorMessageBottom by remember { mutableStateOf("") }
+    var errorMessageName by remember { mutableStateOf("") }
 
     val calendar = remember { Calendar.getInstance() }
 
-    val maxNombre = 30
-
-    fun esFechaValida(fecha: String): Boolean {
+    fun isValidDate(fecha: String): Boolean {
         return try {
             if (fecha.isBlank()) return true
             val formato = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
@@ -991,11 +984,11 @@ fun CrearProductoDialog(
                     },
                     label = { Text("Nombre", color = Color.Gray) },
                     singleLine = true,
-                    isError = errorMensajeNombre.isNotEmpty(),
+                    isError = errorMessageName.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth()
                 )
-                if (errorMensajeNombre.isNotEmpty()) {
-                    Text(errorMensajeNombre, color = Color.Red, fontSize = 12.sp)
+                if (errorMessageName.isNotEmpty()) {
+                    Text(errorMessageName, color = Color.Red, fontSize = 12.sp)
                 }
 
                 Spacer(Modifier.height(8.dp))
@@ -1115,9 +1108,9 @@ fun CrearProductoDialog(
                     Text("Fecha seleccionada: $fechaCaducidad", fontSize = 13.sp)
                 }
 
-                if (errorMensajeBottom.isNotEmpty()) {
+                if (errorMessageBottom.isNotEmpty()) {
                     Spacer(Modifier.height(6.dp))
-                    Text(errorMensajeBottom, color = Color.Red)
+                    Text(errorMessageBottom, color = Color.Red)
                 }
             }
         },
@@ -1126,31 +1119,31 @@ fun CrearProductoDialog(
                 val cantidadInt = cantidad.toIntOrNull()
 
                 if (nombre.isBlank() || cantidadInt == null || cantidadInt <= 0.0) {
-                    errorMensajeBottom = "El nombre y la cantidad son obligatorios."
+                    errorMessageBottom = "El nombre y la cantidad son obligatorios."
                     return@TextButton
                 }
 
-                if (nombre.length > maxNombre) {
+                if (nombre.length > 30) {
                     return@TextButton
                 }
 
-                if (!esFechaValida(fechaCaducidad)) {
+                if (!isValidDate(fechaCaducidad)) {
                     return@TextButton
                 }
 
-                var unidadesFinal = "";
+                var unitsFinal = "";
                 if (unidades.isBlank() && cantidadInt > 1){
-                    unidadesFinal = "unidades"
+                    unitsFinal = "unidades"
                 } else if (unidades.isBlank() && cantidadInt == 1){
-                    unidadesFinal = "unidad"
+                    unitsFinal = "unidad"
                 } else {
-                    unidadesFinal = unidades.trim()
+                    unitsFinal = unidades.trim()
                 }
 
-                val fechaFinal = fechaCaducidad.trim()
+                val finalDate = fechaCaducidad.trim()
 
 
-                onConfirm(nombre.trim(), cantidadInt.toInt(), unidadesFinal, fechaFinal)
+                onConfirm(nombre.trim(), cantidadInt.toInt(), unitsFinal, finalDate)
             }) {
                 Text("Crear")
             }
@@ -1190,7 +1183,7 @@ fun DeleteProductoDialog(
 }
 
 @Composable
-fun AgregarAListaCompraDialog(
+fun AddProductoToListaCompraDialog(
     producto: Producto,
     cantidad: String,
     unidades: String,
@@ -1208,7 +1201,7 @@ fun AgregarAListaCompraDialog(
         title = { Text("Añadir a lista de compra") },
         text = {
             Column {
-                Text("Producto: ${producto.nombre}")
+                Text("Producto: ${producto.nombre}", fontSize = 16.sp)
                 Spacer(Modifier.height(8.dp))
 
                 OutlinedTextField(
@@ -1264,15 +1257,15 @@ fun AgregarAListaCompraDialog(
 }
 
 @Composable
-fun AbandonarDespensaDialog(
-    despensaNombre: String,
+fun LeaveDespensaDialog(
+    despensaName: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Abandonar despensa") },
-        text = { Text("¿Estás seguro de que quieres abandonar la despensa \"$despensaNombre\"? Esta acción no se puede deshacer.") },
+        text = { Text("¿Estás seguro de que quieres abandonar la despensa \"$despensaName\"? Esta acción no se puede deshacer.") },
         confirmButton = {
             TextButton(onClick = onConfirm) {
                 Text("Sí, abandonar")
@@ -1287,7 +1280,7 @@ fun AbandonarDespensaDialog(
 }
 
 @Composable
-fun EstadoChip(text: String, color: Color) {
+fun EstadoProductoChip(text: String, color: Color) {
     Box(
         modifier = Modifier
             .background(color = color, shape = RoundedCornerShape(8.dp))

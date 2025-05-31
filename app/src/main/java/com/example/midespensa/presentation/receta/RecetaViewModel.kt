@@ -34,6 +34,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.net.URLEncoder
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -47,7 +48,6 @@ class RecetaViewModel : ViewModel() {
     private val _recetasTranslated = mutableStateOf<List<Receta>>(emptyList())
     private val _showTranslated = mutableStateOf(false)
     private val _isLoading = mutableStateOf(false)
-    private val _favorites = mutableStateOf<List<Receta>>(emptyList())
 
     // Expuestos
     val recetas: State<List<Receta>> = derivedStateOf { if (_showTranslated.value) _recetasTranslated.value else _recetasEnglish.value }
@@ -66,7 +66,6 @@ class RecetaViewModel : ViewModel() {
     // Edamam
     private val appId = BuildConfig.EDAMAM_APP_ID
     private val appKey = BuildConfig.EDAMAM_APP_KEY
-
 
     // Traductores ML Kit
     private val enToEsTranslator: Translator by lazy {
@@ -125,8 +124,8 @@ class RecetaViewModel : ViewModel() {
                     // Traducir OFFLINE en paralelo y rellenar la versión en ESPAÑOL
                     viewModelScope.launch(Dispatchers.Default) {
                         val translated = english.map { receta ->
-                            val labelEs    = traducirOffline(receta.label, enToEsTranslator)
-                            val ingredEs   = receta.ingredientLines.map { traducirOffline(it, enToEsTranslator) }
+                            val labelEs    = translateOffline(receta.label, enToEsTranslator)
+                            val ingredEs   = receta.ingredientLines.map { translateOffline(it, enToEsTranslator) }
                             receta.copy(label = labelEs, ingredientLines = ingredEs)
                         }
                         _favoritesTranslated.value = translated
@@ -138,43 +137,74 @@ class RecetaViewModel : ViewModel() {
     fun toggleTranslation() { _showTranslated.value = !_showTranslated.value }
     fun toggleShowFavorites() { _showFavorites.value = !_showFavorites.value }
 
-    fun buscarRecetas(query: String) {
-
+    /**
+     * Realiza una búsqueda de recetas usando la API de Edamam.
+     * Traduce la consulta al inglés, realiza la petición a la API y traduce los resultados al español.
+     * Actualiza los estados internos con las recetas obtenidas.
+     *
+     *  @param query Consulta de búsqueda en inglés.
+     */
+    fun searchRecetas(query: String) {
+        Log.d("RecetaVM", "buscarRecetas llamada con query: '$query'")
         _showFavorites.value = false
+
         viewModelScope.launch {
             _isLoading.value = true
 
-            // Traducir consulta
+            // Traducir la consulta al inglés
             val queryEn = withContext(Dispatchers.Default) {
-                traducirOffline(query, esToEnTranslator)
+                translateOffline(query, esToEnTranslator)
             }
+            Log.d("RecetaVM", "Consulta traducida: '$queryEn'")
 
-            // Fetch Edamam
+            // Codificar y construir la URL
+            val qEsc = URLEncoder.encode(queryEn, "UTF-8")
+            val url =
+                "https://api.edamam.com/api/recipes/v2?type=public&q=$qEsc&app_id=$appId&app_key=$appKey&to=5"
+            Log.d("RecetaVM", "URL Edamam -> $url")
+
+            // Llamada a la API
             val ingles = withContext(Dispatchers.IO) {
                 runCatching {
-                    val url = "https://api.edamam.com/api/recipes/v2?type=public&q=$queryEn&app_id=$appId&app_key=$appKey&to=5"
-                    val client = HttpClient(CIO) { install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) } }
-                    val resp: JsonObject = client.get(url) { user?.uid?.let { header("Edamam-Account-User", it) } }.body()
-                    resp["hits"]?.jsonArray?.mapNotNull { hit ->
-                        hit.jsonObject["recipe"]?.jsonObject?.let { r ->
-                            Receta(
-                                label = r["label"]!!.jsonPrimitive.content,
-                                image = r["image"]!!.jsonPrimitive.content,
-                                url = r["url"]!!.jsonPrimitive.content,
-                                yield = r["yield"]?.jsonPrimitive?.intOrNull ?: 1,
-                                ingredientLines = r["ingredientLines"]!!.jsonArray.map { it.jsonPrimitive.content }
-                            )
+                    val client = HttpClient(CIO) {
+                        install(ContentNegotiation) {
+                            json(Json { ignoreUnknownKeys = true })
                         }
-                    } ?: emptyList()
+                    }
+                    val resp: JsonObject = client.get(url) {
+                        user?.uid?.let { header("Edamam-Account-User", it) }
+                    }.body()
+                    Log.d("RecetaVM", "Respuesta cruda Edamam: $resp")
+
+                    val hits = resp["hits"]?.jsonArray
+                    Log.d("RecetaVM", "Número de hits: ${hits?.size ?: 0}")
+
+                    hits
+                        ?.mapNotNull { hit ->
+                            hit.jsonObject["recipe"]?.jsonObject?.let { r ->
+                                Receta(
+                                    label = r["label"]!!.jsonPrimitive.content,
+                                    image = r["image"]!!.jsonPrimitive.content,
+                                    url = r["url"]!!.jsonPrimitive.content,
+                                    yield = r["yield"]?.jsonPrimitive?.intOrNull ?: 1,
+                                    ingredientLines = r["ingredientLines"]!!
+                                        .jsonArray
+                                        .map { it.jsonPrimitive.content }
+                                )
+                            }
+                        }
+                        ?: emptyList()
                 }.getOrDefault(emptyList())
             }
+
+            // Actualizar lista en inglés
             _recetasEnglish.value = ingles
 
-            // Traducir resultados
+            // Traducir resultados al español
             val traducidas = ingles.map { receta ->
                 async(Dispatchers.Default) {
-                    val lab = traducirOffline(receta.label, enToEsTranslator)
-                    val ing = receta.ingredientLines.map { traducirOffline(it, enToEsTranslator) }
+                    val lab = translateOffline(receta.label, enToEsTranslator)
+                    val ing = receta.ingredientLines.map { translateOffline(it, enToEsTranslator) }
                     receta.copy(label = lab, ingredientLines = ing)
                 }
             }.awaitAll()
@@ -185,37 +215,47 @@ class RecetaViewModel : ViewModel() {
         }
     }
 
-    private suspend fun traducirOffline(text: String, trans: Translator): String =
+    /**
+     * Traduce un texto de forma offline utilizando ML Kit.
+     * Convierte la operación asincrónica en una coroutine suspendida.
+     */
+    private suspend fun translateOffline(text: String, trans: Translator): String =
         suspendCancellableCoroutine { cont ->
             trans.translate(text)
                 .addOnSuccessListener { cont.resume(it) }
                 .addOnFailureListener { cont.resumeWithException(it) }
         }
 
-    fun toggleFavorite(receta: Receta) {
+    /**
+     * Añade o elimina una receta de la lista de favoritos.
+     * Actualiza localmente la lista en memoria (UI instantánea) y, a continuación,
+     * dispara la persistencia en Firestore sin bloquear la UI.
+     *
+     * @param receta La receta que el usuario está marcando o desmarcando como favorita.
+     */
+    fun toggleFavorito(receta: Receta) {
         val uid = user?.uid ?: return
 
-        // 1) Trabajamos sobre la lista ENGLISh que mantenemos localmente
         val actuales = _favoritesEnglish.value.toMutableList()
         if (actuales.any { it.url == receta.url }) {
             actuales.removeAll { it.url == receta.url }
+            _favoritesTranslated.value = _favoritesTranslated.value.filter { it.url != receta.url }
         } else {
-            actuales.add(receta)
-        }
 
-        // 2) Actualizamos inmediatamente el estado local EN & ES
+            actuales.add(receta)
+            viewModelScope.launch(Dispatchers.Default) {
+                val recetaEs = receta.copy(
+                    label = translateOffline(receta.label, enToEsTranslator),
+                    ingredientLines = receta.ingredientLines.map { translateOffline(it, enToEsTranslator) }
+                )
+                // Anexa solo la receta traducida al final de la lista existente
+                _favoritesTranslated.value = _favoritesTranslated.value + recetaEs
+            }
+        }
+        // Publica la lista en inglés en memoria; esto hace que el icono cambie al instante
         _favoritesEnglish.value = actuales
 
-        viewModelScope.launch(Dispatchers.Default) {
-            val translated = actuales.map { r ->
-                val lblEs  = traducirOffline(r.label, enToEsTranslator)
-                val ingsEs = r.ingredientLines.map { traducirOffline(it, enToEsTranslator) }
-                r.copy(label = lblEs, ingredientLines = ingsEs)
-            }
-            _favoritesTranslated.value = translated
-        }
-
-        // 3) Persistimos en Firestore
+        // 2) Persiste en Firestore sin esperar respuesta (UI ya reaccionó)
         val data = actuales.map { r ->
             mapOf(
                 "label"           to r.label,
@@ -228,8 +268,9 @@ class RecetaViewModel : ViewModel() {
         db.collection("usuarios")
             .document(uid)
             .update("recetas", data)
-            .addOnFailureListener { Log.e("RecetaVM", "Error fav: $it") }
+            .addOnFailureListener { Log.e("RecetaVM", "Error guardando favorito: $it") }
     }
+
 
     fun logout(onLogout: () -> Unit) {
         auth.signOut()

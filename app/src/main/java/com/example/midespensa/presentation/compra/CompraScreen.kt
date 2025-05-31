@@ -60,7 +60,7 @@ fun CompraScreen(
     var despensaParaVaciar by remember { mutableStateOf<Despensa?>(null) }
 
     LaunchedEffect(Unit) {
-        viewModel.cargarDespensasUsuario()
+        viewModel.fetchDespensas()
     }
 
     BackHandler { mostrarDialogoSalir = true }
@@ -243,7 +243,7 @@ fun CompraScreen(
                                                     }
                                                 }
                                                 IconButton(onClick = {
-                                                    viewModel.eliminarProducto(
+                                                    viewModel.deleteProducto(
                                                         codigoDespensa = despensas.get(despensa).codigo,
                                                         productoId = productos.get(producto).id
                                                     )
@@ -268,10 +268,10 @@ fun CompraScreen(
 
         // Diálogo de Añadir
         if (showAgregarProductoDialog && despensaParaAgregar != null) {
-            AgregarProductoDialog(
+            AddProductoDialog(
                 nombreInicial = productoPreseleccionado.orEmpty(),
                 onConfirm = { nombre, cantidad, unidades, detalles ->
-                    viewModel.agregarProducto(
+                    viewModel.addProducto(
                         codigoDespensa = despensaParaAgregar!!.codigo,
                         nombre = nombre,
                         cantidad = cantidad,
@@ -285,10 +285,10 @@ fun CompraScreen(
         }
         // Diálogo de Editar
         if (showEditarDialog && productoEditando != null) {
-            EditarProductoDialog(
+            EditProductoDialog(
                 producto = productoEditando!!,
                 onConfirm = { nuevaCantidad, nuevasUnidades, nuevosDetalles ->
-                    viewModel.editarProducto(
+                    viewModel.editProducto(
                         despensaCodigo = despensaParaAgregar!!.codigo,
                         productoId = productoEditando!!.id,
                         nuevaCantidad = nuevaCantidad,
@@ -312,7 +312,7 @@ fun CompraScreen(
                 confirmButton = {
                     TextButton(onClick = {
                         // Ejecutamos el vaciado
-                        viewModel.vaciarListaDespensa(despensaParaVaciar!!.codigo)
+                        viewModel.emptyListaCompra(despensaParaVaciar!!.codigo)
                         showVaciarDialog = false
                         despensaParaVaciar = null
                     }) {
@@ -333,7 +333,7 @@ fun CompraScreen(
 }
 
 @Composable
-fun EditarProductoDialog(
+fun EditProductoDialog(
     producto: ProductoCompra,
     onConfirm: (nuevaCantidad: Int, nuevasUnidades: String, nuevosDetalles: String) -> Unit,
     onDismiss: () -> Unit
@@ -437,7 +437,7 @@ fun EditarProductoDialog(
 }
 
 @Composable
-fun AgregarProductoDialog(
+fun AddProductoDialog(
     nombreInicial: String = "",
     onConfirm: (String, Int, String, String) -> Unit,
     onDismiss: () -> Unit
@@ -496,6 +496,7 @@ fun AgregarProductoDialog(
                     onValueChange = { input ->
                         detalles = input.take(50) },
                     label = { Text("Detalles (opcional)", color = Color.Gray) },
+                    singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 if (errorMensaje.isNotBlank()) {

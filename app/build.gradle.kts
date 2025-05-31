@@ -1,3 +1,11 @@
+import java.util.Properties
+
+val localProps = Properties().apply {
+    val propFile = rootProject.file("local.properties")
+    if (!propFile.exists()) throw GradleException("No se encontró local.properties: define EDAMAM_APP_ID y EDAMAM_APP_KEY ahí")
+    propFile.inputStream().use { load(it) }
+}
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsKotlinAndroid)
@@ -21,8 +29,14 @@ android {
             useSupportLibrary = true
         }
 
-        buildConfigField("String", "EDAMAM_APP_ID", "\"${project.properties["EDAMAM_APP_ID"]}\"")
-        buildConfigField("String", "EDAMAM_APP_KEY", "\"${project.properties["EDAMAM_APP_KEY"]}\"")
+        buildConfigField(
+            "String", "EDAMAM_APP_ID",
+            "\"${localProps.getProperty("EDAMAM_APP_ID") ?: throw GradleException("EDAMAM_APP_ID no definida en local.properties")}\""
+        )
+        buildConfigField(
+            "String", "EDAMAM_APP_KEY",
+            "\"${localProps.getProperty("EDAMAM_APP_KEY") ?: throw GradleException("EDAMAM_APP_KEY no definida en local.properties")}\""
+        )
 
     }
 

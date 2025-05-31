@@ -34,6 +34,7 @@ class NotificationWorker(
     params: WorkerParameters
 ) : CoroutineWorker(appContext, params) {
 
+    // miembro estático
     companion object {
         private const val CHANNEL_ID = "caducidad_channel"
         private const val CHANNEL_NAME = "Alertas de caducidad"

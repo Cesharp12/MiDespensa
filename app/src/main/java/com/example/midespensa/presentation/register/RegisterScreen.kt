@@ -226,7 +226,7 @@ fun RegisterScreen(
         Button(
             onClick = {
                 focusManager.clearFocus()
-                viewModel.registerUser(
+                viewModel.registerUsuario(
                     onSuccess = {
                         Toast.makeText(context, "Registro exitoso", Toast.LENGTH_SHORT).show()
                         navController.navigate("login")

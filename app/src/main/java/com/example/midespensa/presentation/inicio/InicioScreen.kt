@@ -44,7 +44,6 @@ import com.example.midespensa.ui.theme.GreenConfirm
 
 @Composable
 fun InicioScreen(navController: NavController, viewModel: InicioViewModel = viewModel()) {
-    val user = viewModel.user
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
@@ -274,7 +273,10 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCreateDialog = false }) {
+                TextButton(onClick = {
+                    newName = ""
+                    showCreateDialog = false
+                }) {
                     Text("Cancelar")
                 }
             }

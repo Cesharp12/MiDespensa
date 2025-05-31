@@ -1,13 +1,12 @@
 package com.example.midespensa.presentation.cuenta
 
-import android.net.Uri
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
+import com.example.midespensa.notifications.WorkScheduler
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +14,6 @@ import kotlinx.coroutines.flow.asStateFlow
 class CuentaViewModel : ViewModel() {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
 
     val user: FirebaseUser? = auth.currentUser
 
@@ -28,10 +26,16 @@ class CuentaViewModel : ViewModel() {
     val profileImageUrl: StateFlow<String?> = _profileImageUrl.asStateFlow()
 
     init {
-        obtenerNombreYApellidos()
+        fetchNombreApellidosUsuario()
     }
 
-    private fun obtenerNombreYApellidos() {
+    /**
+     * Obtiene el nombre y apellidos del usuario actual desde Firestore
+     * y actualiza los valores internos del ViewModel.
+     *
+     * No devuelve nada. Solo actualiza los StateFlow internos.
+     */
+    private fun fetchNombreApellidosUsuario() {
         val uid = user?.uid ?: return
 
         db.collection("usuarios").document(uid).get()
@@ -48,41 +52,29 @@ class CuentaViewModel : ViewModel() {
             }
     }
 
-    fun subirImagen(uri: Uri, onSuccess: () -> Unit = {}, onError: (Exception) -> Unit = {}) {
-        val uid = user?.uid ?: return
-        val imagenRef = storage.reference.child("fotos_perfil/$uid.jpg")
+    /**
+     * Guarda la hora y minuto seleccionados en las preferencias compartidas
+     * y programa una notificación diaria usando WorkManager.
+     *
+     * @param context Contexto necesario para acceder a SharedPreferences y programar la notificación.
+     * @param hora Hora seleccionada para la notificación diaria.
+     * @param minuto Minuto seleccionado para la notificación diaria.
+     * @param onSuccess Función callback que se ejecuta después de programar correctamente la notificación.
+     */
+    fun scheduleDailyNotification(context: Context, hora: Int, minuto: Int, onSuccess: () -> Unit) {
+        val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putInt("notif_hour", hora)
+            .putInt("notif_minute", minuto)
+            .apply()
 
-        imagenRef.putFile(uri)
-            .continueWithTask { task ->
-                if (!task.isSuccessful) {
-                    throw task.exception ?: Exception("Error al subir imagen")
-                }
-                imagenRef.downloadUrl
-            }
-            .addOnSuccessListener { downloadUri ->
-                actualizarFotoEnPerfil(downloadUri.toString())
-                _profileImageUrl.value = downloadUri.toString()
-                onSuccess()
-            }
-            .addOnFailureListener { e ->
-                Log.e("CuentaViewModel", "Error al subir imagen: ${e.message}", e)
-                onError(e)
-            }
+        // Programar notificación
+        WorkScheduler.scheduleDailyNotification(context, hora, minuto)
+
+        // Callback para notificar
+        onSuccess()
     }
 
-    private fun actualizarFotoEnPerfil(nuevaUrl: String) {
-        val perfilUpdate = UserProfileChangeRequest.Builder()
-            .setPhotoUri(Uri.parse(nuevaUrl))
-            .build()
-
-        user?.updateProfile(perfilUpdate)
-            ?.addOnSuccessListener {
-                Log.d("CuentaViewModel", "Foto de perfil actualizada correctamente")
-            }
-            ?.addOnFailureListener {
-                Log.e("CuentaViewModel", "Error al actualizar foto de perfil", it)
-            }
-    }
 
     fun logout(onLogout: () -> Unit) {
         auth.signOut()

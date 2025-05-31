@@ -36,13 +36,6 @@ class RegisterViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
 
-    // Map de mensajes personalizados para errores comunes de FirebaseAuth
-    private val errorMessages = mapOf(
-        "The email address is already in use by another account." to "Este correo ya está registrado.",
-        "The email address is badly formatted." to "El correo electrónico no tiene un formato válido.",
-        "A network error (such as timeout, interrupted connection or unreachable host) has occurred." to "Error de red. Verifica tu conexión."
-    )
-
     /**
      * Valida que el nombre tenga entre 2 y 30 caracteres si no está vacío.
      */
@@ -82,7 +75,7 @@ class RegisterViewModel : ViewModel() {
      * @param onSuccess Función llamada tras guardar correctamente en Firestore.
      * @param onFailure Función llamada si falla la escritura en Firestore.
      */
-    fun registerUser(
+    fun registerUsuario(
         onSuccess: () -> Unit,
         onFailure: (String) -> Unit
     ) {
