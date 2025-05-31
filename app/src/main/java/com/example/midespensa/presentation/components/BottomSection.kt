@@ -13,13 +13,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavController
-import com.example.midespensa.ui.theme.GreenBack
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.compose.material3.NavigationBarItemDefaults
+import com.example.midespensa.ui.theme.GreenBack
 import com.example.midespensa.ui.theme.GreenConfirm
+import androidx.compose.material3.NavigationBarItemDefaults
 
+/**
+ * Barra de navegación inferior para cada pantalla con accesos a las secciones principales de la app.
+ *
+ * Muestra cuatro elementos: Inicio, Recetas, Compra y Cuenta. Cada uno detecta
+ * la ruta activa a través del NavController y aplica estilo seleccionado.
+ * Cambia de pantalla al pulsar un elemento diferente.
+ *
+ * @param navController Controlador de navegación usado para cambiar de ruta.
+ */
 @Composable
 fun BottomSection(navController: NavController) {
+    // Obtener la ruta actual
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -27,6 +37,7 @@ fun BottomSection(navController: NavController) {
         containerColor = GreenBack,
         contentColor = Color.Black
     ) {
+        // Elemento "Inicio"
         NavigationBarItem(
             icon = { Icon(Icons.Default.Home, contentDescription = "Inicio") },
             label = { Text("Inicio") },
@@ -35,11 +46,13 @@ fun BottomSection(navController: NavController) {
                 if (currentRoute != "inicio") navController.navigate("inicio")
             },
             colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = GreenConfirm,
-                selectedTextColor = GreenConfirm,
-                indicatorColor = Color.Transparent
+                selectedIconColor = GreenConfirm,    // Icono al seleccionar
+                selectedTextColor = GreenConfirm,    // Texto al seleccionar
+                indicatorColor = Color.Transparent   // Sin indicador de fondo
             )
         )
+
+        // Elemento "Recetas"
         NavigationBarItem(
             icon = { Icon(Icons.Default.Book, contentDescription = "Recetas") },
             label = { Text("Recetas") },
@@ -53,6 +66,8 @@ fun BottomSection(navController: NavController) {
                 indicatorColor = Color.Transparent
             )
         )
+
+        // Elemento "Compra"
         NavigationBarItem(
             icon = { Icon(Icons.Default.ShoppingCart, contentDescription = "Compra") },
             label = { Text("Compra") },
@@ -66,6 +81,8 @@ fun BottomSection(navController: NavController) {
                 indicatorColor = Color.Transparent
             )
         )
+
+        // Elemento "Cuenta"
         NavigationBarItem(
             icon = { Icon(Icons.Default.Person, contentDescription = "Cuenta") },
             label = { Text("Cuenta") },

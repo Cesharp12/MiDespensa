@@ -24,7 +24,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
@@ -37,20 +36,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
-import androidx.navigation.compose.rememberNavController
 import com.example.midespensa.data.model.Despensa
 import com.example.midespensa.ui.theme.DarkGray
 import com.example.midespensa.ui.theme.GreenConfirm
 
+
 @Composable
 fun InicioScreen(navController: NavController, viewModel: InicioViewModel = viewModel()) {
-    val user = viewModel.user
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
     val despensas by viewModel.despensas.collectAsState()
+
     val errorMsg by viewModel.error.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
@@ -59,8 +57,9 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
     // GESTIÓN DE LA ACCIÓN DE VOLVER A ATRÁS
     var mostrarDialogoSalir by remember { mutableStateOf(false) }
 
-    // Scroll LazyColumn
-    val listState = rememberLazyListState()
+    // Limitar a 8 la cantidad de despensas
+    var showLimitDialog by remember { mutableStateOf(false) }
+    var limitDialogMessage by remember { mutableStateOf("") }
 
     // Interceptar botón "atrás" del sistema
     BackHandler {
@@ -76,7 +75,7 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                     mostrarDialogoSalir = false
                     viewModel.logout {
                         navController.navigate("login") {
-                            popUpTo("cuenta") { inclusive = true }
+                            popUpTo("inicio") { inclusive = true }
                         }
                     }
                 }) {
@@ -128,7 +127,6 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Spacer(Modifier.height(15.dp))
-
                     Text(
                         "Unirse a despensa",
                         fontSize = 25.sp,
@@ -140,19 +138,33 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                     Spacer(Modifier.height(15.dp))
                     OutlinedTextField(
                         value = joinCode,
-                        onValueChange = { joinCode = it },
-                        placeholder = { Text("Código único") },
+                        onValueChange = { newValue ->
+                            // Sólo deja hasta 6 caracteres
+                            joinCode = newValue.take(6)
+                        },
+                        placeholder = { Text("Código único (6 dígitos)") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         modifier = Modifier.fillMaxWidth()
                     )
+
                     Spacer(Modifier.height(8.dp))
+
                     Button(
                         onClick = {
                             focusManager.clearFocus()
-                            viewModel.joinDespensa(joinCode,
-                                onSuccess = { newName = ""; joinCode = ""; Toast.makeText(context, "¡Nueva despensa añadida!", Toast.LENGTH_SHORT).show() },
-                                onFailure = { msg ->Toast.makeText(context, "Error al unirse", Toast.LENGTH_SHORT).show() }
+                            val code = joinCode.trim().uppercase()
+
+                            viewModel.joinDespensa(
+                                code,
+                                onSuccess = {
+                                    joinCode = ""
+                                    Toast.makeText(context, "¡Nueva despensa añadida!", Toast.LENGTH_SHORT).show()
+                                },
+                                onFailure = { msg ->
+                                    limitDialogMessage = msg
+                                    showLimitDialog = true
+                                }
                             )
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = GreenConfirm),
@@ -161,6 +173,7 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                     ) {
                         Text("UNIRSE", color = Color.White)
                     }
+
 
                     errorMsg?.let {
                         Spacer(Modifier.height(12.dp))
@@ -187,7 +200,14 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                         )
 
                         Button(
-                            onClick = { showCreateDialog = true },
+                            onClick = {
+                                if (despensas.size >= 8) {
+                                    limitDialogMessage = "No puedes crear más de 8 despensas"
+                                    showLimitDialog = true
+                                } else {
+                                    showCreateDialog = true
+                                }
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = DarkGray),
                             shape = MaterialTheme.shapes.small,
                             modifier = Modifier.align(Alignment.CenterEnd),
@@ -234,7 +254,7 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                     onValueChange = {
                         if (it.length <= 22) newName = it
                     },
-                    placeholder = { Text("Nombre de la despensa") },
+                    placeholder = { Text("Nombre de la despensa", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -253,12 +273,29 @@ fun InicioScreen(navController: NavController, viewModel: InicioViewModel = view
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCreateDialog = false }) {
+                TextButton(onClick = {
+                    newName = ""
+                    showCreateDialog = false
+                }) {
                     Text("Cancelar")
                 }
             }
         )
     }
+    // Avisar de que se ha llegado al maximo permitido de despensas
+    if (showLimitDialog) {
+        AlertDialog(
+            onDismissRequest = { showLimitDialog = false },
+            title = { Text("Error al unirse") },
+            text = { Text(limitDialogMessage) },
+            confirmButton = {
+                TextButton(onClick = { showLimitDialog = false }) {
+                    Text("Entendido")
+                }
+            }
+        )
+    }
+
 }
 
 @Composable

@@ -1,6 +1,7 @@
 package com.example.midespensa.presentation.register
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -46,6 +47,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.midespensa.ui.theme.*
 
+/**
+ * Pantalla de registro de usuario.
+ *
+ * Muestra un formulario con campos de nombre, apellidos, email y contraseña,
+ * aplica validaciones y maneja el registro mediante el ViewModel.
+ *
+ */
 @Composable
 fun RegisterScreen(
     navController: NavController,
@@ -54,29 +62,40 @@ fun RegisterScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
+    // FocusRequesters para mover el foco de un campo al siguiente
     val nameFocus = remember { FocusRequester() }
     val surnameFocus = remember { FocusRequester() }
     val emailFocus = remember { FocusRequester() }
     val passwordFocus = remember { FocusRequester() }
+
+    // Capturar back del sistema para volver a login y limpiar la pila
+    BackHandler {
+        navController.navigate("login") {
+            popUpTo("register") { inclusive = true }
+            launchSingleTop = true
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(GreenBack)
             .verticalScroll(rememberScrollState())
-            .imePadding()
+            .imePadding()  // Añade padding para que el contenido no quede tras el teclado
             .pointerInput(Unit) {
+                // Tap fuera de campos limpia el foco y oculta teclado
                 detectTapGestures(onTap = { focusManager.clearFocus() })
             }
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text("Crear cuenta", fontSize = 28.sp, color = DarkGray,fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(70.dp))
+        Text("Crear cuenta", fontSize = 28.sp, color = DarkGray, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(70.dp))
         Text("¡Únete a nosotros!", fontSize = 16.sp, color = DarkGray)
-        Spacer(modifier = Modifier.height(15.dp))
+        Spacer(Modifier.height(15.dp))
 
+        // Campo de nombre con validación al cambiar y al perder foco
         OutlinedTextField(
             value = viewModel.name,
             onValueChange = {
@@ -91,9 +110,7 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(nameFocus)
-                .onFocusChanged {
-                    viewModel.validateName()
-                },
+                .onFocusChanged { viewModel.validateName() },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             keyboardActions = KeyboardActions(onNext = { surnameFocus.requestFocus() })
         )
@@ -101,8 +118,9 @@ fun RegisterScreen(
             Text("Debe tener entre 2 y 30 caracteres", color = Color.Red, fontSize = 12.sp)
         }
 
-        Spacer(modifier = Modifier.height(15.dp))
+        Spacer(Modifier.height(15.dp))
 
+        // Campo de apellidos similar al anterior
         OutlinedTextField(
             value = viewModel.surname,
             onValueChange = {
@@ -117,18 +135,17 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(surnameFocus)
-                .onFocusChanged {
-                    viewModel.validateSurname()
-                },
+                .onFocusChanged { viewModel.validateSurname() },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
             keyboardActions = KeyboardActions(onNext = { emailFocus.requestFocus() })
         )
         if (viewModel.surnameError) {
-            Text("Debe tener entre 2 y 40 caracteres", color = Color.Red, fontSize = 12.sp)
+            Text("Debe tener entre 2 y 50 caracteres", color = Color.Red, fontSize = 12.sp)
         }
 
-        Spacer(modifier = Modifier.height(15.dp))
+        Spacer(Modifier.height(15.dp))
 
+        // Campo de correo
         OutlinedTextField(
             value = viewModel.email,
             onValueChange = {
@@ -143,9 +160,7 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(emailFocus)
-                .onFocusChanged {
-                    viewModel.validateEmail()
-                },
+                .onFocusChanged { viewModel.validateEmail() },
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
                 imeAction = ImeAction.Next
@@ -156,8 +171,9 @@ fun RegisterScreen(
             Text("Correo electrónico inválido", color = Color.Red, fontSize = 12.sp)
         }
 
-        Spacer(modifier = Modifier.height(15.dp))
+        Spacer(Modifier.height(15.dp))
 
+        // Campo de contraseña con visibilidad toggle
         OutlinedTextField(
             value = viewModel.password,
             onValueChange = {
@@ -169,13 +185,13 @@ fun RegisterScreen(
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
             trailingIcon = {
                 IconButton(onClick = { viewModel.togglePasswordVisibility() }) {
-                    Icon(
-                        imageVector = if (viewModel.passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                        contentDescription = null
-                    )
+                    val visibilityIcon = if (viewModel.passwordVisible)
+                        Icons.Default.Visibility else Icons.Default.VisibilityOff
+                    Icon(imageVector = visibilityIcon, contentDescription = null)
                 }
             },
-            visualTransformation = if (viewModel.passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            visualTransformation = if (viewModel.passwordVisible)
+                VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Done
@@ -186,9 +202,7 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(passwordFocus)
-                .onFocusChanged {
-                    viewModel.validatePassword()
-                }
+                .onFocusChanged { viewModel.validatePassword() }
         )
         if (viewModel.passwordError) {
             Text(
@@ -198,21 +212,22 @@ fun RegisterScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(Modifier.height(20.dp))
         HorizontalDivider(thickness = 2.dp)
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(Modifier.height(20.dp))
 
+        // Mostrar mensaje de error general si ya existe
         viewModel.errorMessage?.let {
             Text(it, color = Color.Red, fontSize = 14.sp)
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(8.dp))
         }
 
+        // Botón de registro: llama al ViewModel y muestra Toast según resultado
         Button(
             onClick = {
                 focusManager.clearFocus()
-                viewModel.registerUser(
+                viewModel.registerUsuario(
                     onSuccess = {
-                        // Mensaje flotante del sistema
                         Toast.makeText(context, "Registro exitoso", Toast.LENGTH_SHORT).show()
                         navController.navigate("login")
                     },
@@ -220,7 +235,7 @@ fun RegisterScreen(
                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     }
                 )
-             },
+            },
             colors = ButtonDefaults.buttonColors(containerColor = GreenConfirm),
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.small
@@ -228,10 +243,10 @@ fun RegisterScreen(
             Text("Registrarse", color = Color.White, fontSize = 15.sp)
         }
 
-        TextButton(
-            onClick = {
-                navController.navigate("login")
-                focusManager.clearFocus()
+        // Enlace para volver al login sin registrar
+        TextButton(onClick = {
+            navController.navigate("login")
+            focusManager.clearFocus()
         }) {
             Text(
                 "Volver al inicio de sesión",

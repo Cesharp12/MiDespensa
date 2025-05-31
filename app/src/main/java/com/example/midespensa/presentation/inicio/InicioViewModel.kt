@@ -1,12 +1,7 @@
 package com.example.midespensa.presentation.inicio
 
 import android.util.Log
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.ime
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.example.midespensa.data.model.Despensa
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -16,24 +11,28 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-// open para testeo
-open class InicioViewModel : ViewModel() {
+class InicioViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
     private val uid = auth.currentUser?.uid
-    open val user: FirebaseUser? = auth.currentUser
+    val user: FirebaseUser? = auth.currentUser
 
     private val _despensas = MutableStateFlow<List<Despensa>>(emptyList())
-    open val despensas: StateFlow<List<Despensa>> = _despensas.asStateFlow()
+    val despensas: StateFlow<List<Despensa>> = _despensas.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
-    open val error: StateFlow<String?> = _error.asStateFlow()
+    val error: StateFlow<String?> = _error.asStateFlow()
 
     init {
         fetchDespensas()
     }
 
-    /** Trae en tiempo real las despensas donde eres miembro */
+    /**
+     * Escucha en tiempo real las despensas del usuario autenticado y actualiza el estado interno.
+     * Solo incluye las despensas donde el usuario está en la lista de miembros.
+     *
+     * No retorna valor, pero actualiza el `StateFlow` _despensas o _error según el resultado.
+     */
     private fun fetchDespensas() {
         uid ?: return
         db.collection("despensas")
@@ -55,9 +54,14 @@ open class InicioViewModel : ViewModel() {
             }
     }
 
-    /** Crea una nueva despensa con nombre y código aleatorio */
-    // TODO: Implementar mas campos
-    open fun createDespensa(
+    /**
+     * Crea una nueva despensa con un nombre dado y la añade al usuario actual como miembro.
+     *
+     * @param nombre Nombre de la nueva despensa.
+     * @param onSuccess Callback que se ejecuta si la creación fue exitosa.
+     * @param onFailure Callback con mensaje de error en caso de fallo.
+     */
+    fun createDespensa(
         nombre: String,
         onSuccess: () -> Unit = {},
         onFailure: (String) -> Unit = {}
@@ -82,27 +86,54 @@ open class InicioViewModel : ViewModel() {
             .addOnFailureListener { Log.e("createDespensa", "Error creando despensa", it) }
     }
 
-    /** Únete a una despensa por código */
-    open fun joinDespensa(
+    /**
+     * Permite al usuario unirse a una despensa existente mediante un código alfanumérico.
+     * Verifica que el usuario no esté ya en la despensa y que no se haya superado el límite de miembros.
+     *
+     * @param code Código de la despensa.
+     * @param onSuccess Callback al unirse correctamente.
+     * @param onFailure Callback con mensaje de error en caso de fallo o validación.
+     */
+    fun joinDespensa(
         code: String,
         onSuccess: () -> Unit = {},
         onFailure: (String) -> Unit = {}
     ) {
         val yourUid = uid ?: return onFailure("Usuario no autenticado")
         if (code.isBlank()) return onFailure("Introduce un código válido")
+
+        // Busca la despensa por su código
         db.collection("despensas")
             .whereEqualTo("codigo", code.trim().uppercase())
             .get()
             .addOnSuccessListener { snap ->
                 if (snap.isEmpty) {
-                    onFailure("No existe ninguna despensa con ese código")
+                    // Código incorrecto
+                    onFailure("Código de despensa inválido")
                 } else {
-                    // Actualiza members con arrayUnion
                     val doc = snap.documents.first()
-                    db.collection("despensas").document(doc.id)
-                        .update("miembros", FieldValue.arrayUnion(yourUid))
-                        .addOnSuccessListener { onSuccess() }
-                        .addOnFailureListener { e -> onFailure(e.message ?: "Error uniendo") }
+                    val nombre = doc.getString("nombre") ?: "—"
+                    val miembros = doc.get("miembros") as? List<String> ?: emptyList()
+
+                    when {
+                        // Comprueba si ya pertenece a la despensa
+                        miembros.contains(yourUid) -> {
+                            onFailure("Ya perteneces a la despensa '$nombre'")
+                        }
+                        // Comprueba si la despensa ya alcanzó el límite de miembros
+                        miembros.size >= 8 -> {
+                            onFailure("La despensa '$nombre' ha llegado al límite de miembros")
+                        }
+                        else -> {
+
+                            db.collection("despensas").document(doc.id)
+                                .update("miembros", FieldValue.arrayUnion(yourUid))
+                                .addOnSuccessListener { onSuccess() }
+                                .addOnFailureListener { e ->
+                                    onFailure(e.message ?: "Error uniendo a la despensa")
+                                }
+                        }
+                    }
                 }
             }
             .addOnFailureListener { e ->
@@ -110,7 +141,7 @@ open class InicioViewModel : ViewModel() {
             }
     }
 
-    open fun logout(onLogout: () -> Unit) {
+    fun logout(onLogout: () -> Unit) {
         auth.signOut()
         onLogout()
     }

@@ -7,4 +7,7 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="notification_icon_small_color">#286A28</color>
+    <color name="white_ring1">#F2F2F2</color>
+    <color name="white_ring2">#E6E6E6</color>
 </resources>
