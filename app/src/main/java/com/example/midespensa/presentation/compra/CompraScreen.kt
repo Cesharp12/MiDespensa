@@ -54,6 +54,7 @@ fun CompraScreen(
     // Editar info de un producto
     var productoEditando by remember { mutableStateOf<ProductoCompra?>(null) }
     var showEditarDialog by remember { mutableStateOf(false) }
+    var despensaParaEditar by remember { mutableStateOf<Despensa?>(null) }
 
     //Vaciar productos de la lista
     var showVaciarDialog by remember { mutableStateOf(false) }
@@ -211,6 +212,7 @@ fun CompraScreen(
                                                 .padding(vertical = 4.dp)
                                                 .clickable {
                                                     productoEditando = productos.get(producto)
+                                                    despensaParaEditar = despensas.get(despensa)
                                                     showEditarDialog = true
                                                 },
                                             colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -284,13 +286,14 @@ fun CompraScreen(
             )
         }
         // Diálogo de Editar
-        if (showEditarDialog && productoEditando != null) {
+        if (showEditarDialog && productoEditando != null && despensaParaEditar != null) {
             EditProductoDialog(
                 producto = productoEditando!!,
-                onConfirm = { nuevaCantidad, nuevasUnidades, nuevosDetalles ->
+                onConfirm = { nuevoNombre, nuevaCantidad, nuevasUnidades, nuevosDetalles ->
                     viewModel.editProducto(
-                        despensaCodigo = despensaParaAgregar!!.codigo,
+                        despensaCodigo = despensaParaEditar!!.codigo,
                         productoId = productoEditando!!.id,
+                        nuevoNombre = nuevoNombre,
                         nuevaCantidad = nuevaCantidad,
                         nuevasUnidades = nuevasUnidades,
                         nuevosDetalles = nuevosDetalles
@@ -335,7 +338,7 @@ fun CompraScreen(
 @Composable
 fun EditProductoDialog(
     producto: ProductoCompra,
-    onConfirm: (nuevaCantidad: Int, nuevasUnidades: String, nuevosDetalles: String) -> Unit,
+    onConfirm: (nuevoNombre: String,nuevaCantidad: Int, nuevasUnidades: String, nuevosDetalles: String) -> Unit,
     onDismiss: () -> Unit
 ) {
     var nombre by remember { mutableStateOf(producto.nombre ?: "") }
@@ -343,6 +346,7 @@ fun EditProductoDialog(
     var unidades by remember { mutableStateOf(producto.unidades ?: "") }
     var detalles by remember { mutableStateOf(producto.detalles ?: "") }
 
+    var errorNombre by remember { mutableStateOf("") }
     var errorCantidad by remember { mutableStateOf("") }
     var errorUnidades by remember { mutableStateOf("") }
 
@@ -352,51 +356,54 @@ fun EditProductoDialog(
         text = {
             Column {
 
-                // Nombre
                 OutlinedTextField(
                     value = nombre,
-                    onValueChange = { input ->
-                        nombre = input.take(30)
+                    onValueChange = {
+                        nombre = it.take(30)
+                        if (nombre.isNotBlank()) errorNombre = ""
                     },
                     label = { Text("Nombre", color = Color.Gray) },
+                    singleLine = true,
+                    isError = errorNombre.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (errorNombre.isNotEmpty()) {
+                    Text(errorNombre, color = Color.Red, fontSize = 12.sp)
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = cantidad,
+                    onValueChange = { input ->
+                        // sólo dígitos y hasta 5 caracteres
+                        if (input.matches(Regex("^\\d{0,5}$"))) cantidad = input
+                    },
+                    label = { Text("Cantidad", color = Color.Gray) },
+                    isError = errorCantidad.isNotEmpty(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (errorCantidad.isNotEmpty()) {
+                    Text(errorCantidad, color = Color.Red, fontSize = 12.sp)
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = unidades,
+                    onValueChange = { input ->
+                        // permitimos hasta 15 letras
+                        if (input.matches(Regex("^[\\p{L}]{0,15}$"))) unidades = input
+                    },
+                    label = { Text("Unidades (opcional)", color = Color.Gray) },
+                    placeholder = { Text("ej: kg", color = Color.Gray) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(Modifier.height(8.dp))
 
-                // CANTIDAD
-                OutlinedTextField(
-                    value = cantidad,
-                    onValueChange = {
-                        if (it.matches(Regex("^\\d{0,5}$")) && it.isNotBlank() && it.toInt() <= 7) cantidad = it
-                    },
-                    label = { Text("Cantidad", color = Color.Gray) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    isError = errorCantidad.isNotEmpty()
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                // UNIDADES (opcional)
-                OutlinedTextField(
-                    value = unidades,
-                    onValueChange = { input ->
-                        if (input.isNotBlank() && !input.matches(Regex("^[\\p{L}]{1,15}$")) && input.length <= 7) {
-                            unidades = input.take(20)
-                        }
-                    },
-                    label = { Text("Unidades (opcional)", color = Color.Gray) },
-                    placeholder = { Text("ej: kg", color = Color.Gray) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    isError = errorUnidades.isNotEmpty()
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                // DETALLES (opcional)
                 OutlinedTextField(
                     value = detalles,
                     onValueChange = { detalles = it.take(50) },
@@ -407,23 +414,22 @@ fun EditProductoDialog(
         },
         confirmButton = {
             TextButton(onClick = {
+                if (nombre.isBlank()) {
+                    errorNombre = "El nombre no puede estar vacío"
+                    return@TextButton
+                }
                 val cantidadInt = cantidad.toIntOrNull()
                 if (cantidadInt == null || cantidadInt <= 0) {
                     errorCantidad = "La cantidad debe ser un número positivo"
                     return@TextButton
                 }
-
-                var unidadesFinal = "";
-                if (unidades.isBlank() && cantidadInt > 1){
-                    unidadesFinal = "unidades"
-                } else if (unidades.isBlank() && cantidadInt == 1){
-                    unidadesFinal = "unidad"
-                } else {
-                    unidadesFinal = unidades.trim()
-                }
-
-                errorCantidad = ""
-                onConfirm(cantidadInt, unidadesFinal, detalles.trim())
+                val unidadesFinal = unidades.ifBlank { if (cantidadInt == 1) "unidad" else "unidades" }
+                onConfirm(
+                    nombre.trim(),
+                    cantidadInt,
+                    unidadesFinal,
+                    detalles.trim()
+                )
             }) {
                 Text("Guardar")
             }

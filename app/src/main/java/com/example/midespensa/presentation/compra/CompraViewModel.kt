@@ -120,26 +120,38 @@ class CompraViewModel : ViewModel() {
      * @param nuevasUnidades Nuevas unidades de medida.
      * @param nuevosDetalles Nuevos detalles u observaciones del producto.
      */
-    fun editProducto(despensaCodigo: String, productoId: String, nuevaCantidad: Int, nuevasUnidades: String, nuevosDetalles: String) {
+    fun editProducto(
+        despensaCodigo: String,
+        productoId: String,
+        nuevoNombre: String,
+        nuevaCantidad: Int,
+        nuevasUnidades: String,
+        nuevosDetalles: String
+    ) {
         db.collection("despensas")
             .whereEqualTo("codigo", despensaCodigo)
             .get()
             .addOnSuccessListener { snap ->
                 val despensaId = snap.documents.firstOrNull()?.id ?: return@addOnSuccessListener
-
                 db.collection("despensas")
                     .document(despensaId)
                     .collection("productosCompra")
                     .document(productoId)
                     .update(
                         mapOf(
+                            "nombre" to nuevoNombre,
                             "cantidad" to nuevaCantidad,
                             "unidades" to nuevasUnidades,
                             "detalles" to nuevosDetalles
                         )
                     )
+                    .addOnSuccessListener {
+                        // opcional: aquí podrías volver a llamar a fetchDespensas()
+                        // fetchDespensas()
+                    }
             }
     }
+
 
     /**
      * Elimina un producto específico de la lista de compra de una despensa.
