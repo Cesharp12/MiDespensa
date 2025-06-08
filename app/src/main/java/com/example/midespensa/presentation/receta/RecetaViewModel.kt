@@ -24,6 +24,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
@@ -85,8 +87,10 @@ class RecetaViewModel : ViewModel() {
         )
     }
 
+    private val _modelsReady = mutableStateOf(false)
+    val modelsReady: State<Boolean> = _modelsReady
+
     init {
-        // Descargar modelos ML Kit al iniciar
         viewModelScope.launch {
             try {
                 enToEsTranslator.downloadModelIfNeeded().await()
@@ -94,26 +98,32 @@ class RecetaViewModel : ViewModel() {
                 Log.d("RecetaVM", "Modelos ML Kit descargados")
             } catch (e: Exception) {
                 Log.e("RecetaVM", "Error descargando modelos: ${e.message}")
+            } finally {
+                _modelsReady.value = true
             }
         }
 
         // Escuchar favoritos en Firestore
         user?.uid?.let { uid ->
+            viewModelScope.launch {
+                snapshotFlow { modelsReady.value }
+                    .filter { it }
+                    .first()
             db.collection("usuarios")
                 .document(uid)
                 .addSnapshotListener { snap, _ ->
                     // Extrae la lista cruda de mapas
                     val raw = snap
-                        ?.get("recetas") as? List<Map<String,Any>>
+                        ?.get("recetas") as? List<Map<String, Any>>
                         ?: emptyList()
 
                     // Mapea a objetos Receta en INGLÉS
                     val english = raw.map { map ->
                         Receta(
-                            label           = map["label"] as String,
-                            image           = map["image"] as String,
-                            url             = map["url"] as String,
-                            yield           = (map["yield"] as Long).toInt(),
+                            label = map["label"] as String,
+                            image = map["image"] as String,
+                            url = map["url"] as String,
+                            yield = (map["yield"] as Long).toInt(),
                             ingredientLines = map["ingredientLines"] as List<String>
                         )
                     }
@@ -124,13 +134,19 @@ class RecetaViewModel : ViewModel() {
                     // Traducir OFFLINE en paralelo y rellenar la versión en ESPAÑOL
                     viewModelScope.launch(Dispatchers.Default) {
                         val translated = english.map { receta ->
-                            val labelEs    = translateOffline(receta.label, enToEsTranslator)
-                            val ingredEs   = receta.ingredientLines.map { translateOffline(it, enToEsTranslator) }
+                            val labelEs = translateOffline(receta.label, enToEsTranslator)
+                            val ingredEs = receta.ingredientLines.map {
+                                translateOffline(
+                                    it,
+                                    enToEsTranslator
+                                )
+                            }
                             receta.copy(label = labelEs, ingredientLines = ingredEs)
                         }
                         _favoritesTranslated.value = translated
                     }
                 }
+        }
         }
     }
 
@@ -213,6 +229,11 @@ class RecetaViewModel : ViewModel() {
             delay(200)
             _isLoading.value = false
         }
+    }
+
+    suspend fun downloadAllModels() {
+        enToEsTranslator.downloadModelIfNeeded().await()
+        esToEnTranslator.downloadModelIfNeeded().await()
     }
 
     /**

@@ -52,6 +52,33 @@ fun RecetaScreen(
     var searchQuery by remember { mutableStateOf("") }
     var mostrarDialogoSalir by remember { mutableStateOf(false) }
 
+    if (!viewModel.modelsReady.value) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(
+                    // un verde oscuro, por ejemplo MaterialTheme.primary o un hex
+                    color = Color(0xFF1B5E20)
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Descargando paquetes",
+                    color = Color(0xFF1B5E20),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+
+        return
+    }
+
     BackHandler { mostrarDialogoSalir = true }
     if (mostrarDialogoSalir) {
         AlertDialog(
