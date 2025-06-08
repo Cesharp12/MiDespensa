@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import com.example.midespensa.ui.theme.DarkGray
 import com.example.midespensa.ui.theme.GreenConfirm
+import java.net.URLEncoder
 
 @Composable
 fun CuentaScreen(navController: NavController, viewModel: CuentaViewModel = viewModel()) {
@@ -82,8 +83,12 @@ fun CuentaScreen(navController: NavController, viewModel: CuentaViewModel = view
 
     // Imagen de perfil reactiva
     val profileImageUrl by viewModel.profileImageUrl.collectAsState()
+//    val profileImage = profileImageUrl
+//        ?: "https://ui-avatars.com/api/?name=$nombreUsuario&background=random"
+    val safeName = URLEncoder.encode(nombreUsuario, "UTF-8")
     val profileImage = profileImageUrl
-        ?: "https://ui-avatars.com/api/?name=$nombreUsuario&background=random"
+        ?: "https://ui-avatars.com/api/?name=$safeName&background=random"
+
 
     // Estado para la hora seleccionada (se lee inicialmente de SharedPreferences)
     val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
@@ -125,7 +130,9 @@ fun CuentaScreen(navController: NavController, viewModel: CuentaViewModel = view
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Image(
-                    painter = rememberAsyncImagePainter(model = profileImage),
+                    painter = rememberAsyncImagePainter(
+                        model = profileImage,
+                        ),
                     contentDescription = "Foto de perfil",
                     modifier = Modifier
                         .size(80.dp)
